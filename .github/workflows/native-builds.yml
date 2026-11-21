@@ -38,6 +38,7 @@ jobs:
       - name: Accept installed Android SDK licenses
         run: yes | $ANDROID_HOME/cmdline-tools/16.0/bin/sdkmanager --licenses || true
       - run: npm install
+      - run: npm run build
       - run: npx cap add android
       - run: npx cap sync android
       - name: Build installable debug APK
