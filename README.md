@@ -36,6 +36,15 @@ npx playwright install chromium
 npm run test:e2e
 ```
 
+## Native applications (no deployment required)
+
+Codera can also run as local desktop and Android applications. The desktop app uses an isolated Electron main-process bridge for anonymous Kilo Auto Free requests; the Android app uses Capacitor's native HTTP transport. Neither package contains an API key. AI generation requires an internet connection and remains subject to Kilo's anonymous free-model availability and limits. Projects remain stored locally on the device.
+
+- Windows: `npm run desktop:dist` creates a portable EXE and a Windows installer in `release/`.
+- Android: `npx cap add android`, then `npm run android:sync`; build the debug APK from the Android project with Gradle.
+- GitHub Actions automatically packages both platforms and runs launch checks. The Android APK is debug-signed for testing/installation, not Play Store distribution.
+- No Cloudflare deployment is performed by these workflows.
+
 ## Cloudflare Pages
 
 - Build command: `npm run build`

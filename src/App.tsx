@@ -1,15 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { keylessAI } from './aiClient';
 
-const keylessAI = async (mode: 'plan' | 'build', prompt: string, projectName?: string, files?: FileItem[], plan?: string[]) => {
-  const response = await fetch('/api/generate', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ mode, prompt, projectName, files, plan })
-  });
-  const data = await response.json() as { error?: string; steps?: string[]; summary?: string; files?: FileItem[] };
-  if (!response.ok) throw new Error(data.error || 'Kilo Auto Free could not complete the request.');
-  return JSON.stringify(data);
-};
 const parseAIJson = <T,>(value: string): T => {
   return JSON.parse(value) as T;
 };

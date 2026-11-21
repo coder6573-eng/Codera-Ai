@@ -8,7 +8,9 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit --pretty false",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "desktop:dist": "npm run build && electron-builder --win portable nsis --x64",
+    "android:sync": "npm run build && cap sync android"
   },
   "dependencies": {
     "@vitejs/plugin-react": "latest",
@@ -18,9 +20,44 @@
     "vite": "latest",
     "typescript": "latest",
     "react": "latest",
-    "react-dom": "latest"
+    "react-dom": "latest",
+    "@capacitor/core": "^7.4.3",
+    "@capacitor/android": "^7.4.3"
   },
   "devDependencies": {
-    "@playwright/test": "^1.56.1"
+    "@playwright/test": "^1.56.1",
+    "@capacitor/cli": "^7.4.3",
+    "electron": "^39.2.7",
+    "electron-builder": "^26.0.12"
+  },
+  "main": "desktop/main.cjs",
+  "build": {
+    "appId": "ai.codera.app",
+    "productName": "Codera AI",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "desktop/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        "portable",
+        "nsis"
+      ],
+      "artifactName": "Codera-AI-${version}-${arch}-${target}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "portable": {
+      "artifactName": "Codera-AI-${version}-${arch}-portable.${ext}"
+    },
+    "publish": null
   }
 }
