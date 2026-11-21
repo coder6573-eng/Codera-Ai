@@ -24,6 +24,10 @@ test('preview buttons execute their expected interaction', async ({ page }) => {
   const preview = page.frameLocator('iframe[title="Website preview"]');
   await expect(preview.getByText('Details are visible')).toBeVisible();
   await expect(preview.getByRole('button', { name: 'Hide details' })).toBeVisible();
+  await expect(page.getByText('Automated preview tests')).toBeVisible();
+  await expect(page.getByText(/Safe button interactions/)).toBeVisible();
+  await expect(page.getByText(/In-page navigation behavior/)).toBeVisible();
+  await expect(page.getByText(/Form validation 1/)).toBeVisible();
   await preview.getByRole('button', { name: 'Hide details' }).click();
   await expect(preview.getByText('Details are visible')).toBeHidden();
   await expect(preview.getByRole('button', { name: 'Show details' })).toBeVisible();
