@@ -1,2 +1,8 @@
-interface Env { KILO_API_KEY?: string }
-export const onRequestGet = ({ env }: { env: Env }) => new Response(JSON.stringify({ status: 'ok', generationConfigured: Boolean(env.KILO_API_KEY) }), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
+export const onRequestGet = () => new Response(JSON.stringify({
+  status: 'ok',
+  generationConfigured: true,
+  provider: 'Kilo Auto Free',
+  model: 'kilo-auto/free',
+  authenticationRequired: false,
+  databaseRequired: false
+}), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
