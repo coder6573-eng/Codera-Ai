@@ -202,6 +202,9 @@ export default function App() {
       const data = parseAIJson<{ summary?: string; files?: FileItem[] }>(raw);
       const safe = validateGeneratedFiles(data.files);
       autoRepairCount.current = 0;
+      setRuntimeErrors([]);
+      setPreviewChecks([]);
+      setPreviewReady(false);
       setAutoTestRepairEnabled(true);
       updateProject(p => ({ ...p, files: safe, plan: p.plan.length ? p.plan : planFor(prompt.trim()), updated: Date.now() }));
       setSelectedFile('index.html'); setPanel('preview'); setPrompt(''); setStatus('Build complete · Kilo Auto Free');
