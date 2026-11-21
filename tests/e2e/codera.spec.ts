@@ -66,5 +66,5 @@ test('workspace and project navigation controls remain functional', async ({ pag
   await page.getByRole('button', { name: 'Create workspace' }).click();
   await expect(page.getByRole('heading', { name: 'A workspace for your next idea.' })).toBeVisible();
   await page.getByRole('button', { name: 'Create project' }).click();
-  await expect(page.getByRole('heading', { name: 'Untitled project 1' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'My first website' })).toBeVisible();
 });
