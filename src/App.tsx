@@ -35,7 +35,6 @@ const validateGeneratedFiles = (input: unknown): FileItem[] => {
     const path = item.path; const parts = path.split('/'); const extension = path.split('.').pop()?.toLowerCase();
     if (!path || path.length > 120 || path.startsWith('/') || path.includes(String.fromCharCode(92)) ||
       parts.some((part: string) => !part || part === '.' || part === '..' || part.startsWith('.') || !/^[a-zA-Z0-9_.-]+$/.test(part)) ||
-      !/^[a-zA-Z0-9_-]+(?:\\.[a-zA-Z0-9_-]+)?(?:\\/[a-zA-Z0-9_-]+(?:\\.[a-zA-Z0-9_-]+)?)*$/.test(path) ||
       !extension || !allowed.has(extension)) continue;
     if (item.content.length > 250000) continue;
     if (seen.has(path)) throw new Error('The AI returned duplicate file paths: ' + path);
@@ -92,9 +91,9 @@ export default function App() {
     window.addEventListener('message', receivePreviewError);
     return () => window.removeEventListener('message', receivePreviewError);
   }, []);
-  useEffect(() => { setRuntimeErrors([]); setPreviewChecks([]); setPreviewReady(false); }, [project?.id, project?.updated]);
   const workspace = workspaces.find(w => w.id === workspaceId) || workspaces[0];
   const project = workspace?.projects.find(p => p.id === projectId) || workspace?.projects[0];
+  useEffect(() => { setRuntimeErrors([]); setPreviewChecks([]); setPreviewReady(false); }, [project?.id, project?.updated]);
   useEffect(() => { if (!workspaceId && workspace) setWorkspaceId(workspace.id); }, [workspaceId, workspace]);
   useEffect(() => { if (workspace && (!projectId || !workspace.projects.some(p => p.id === projectId))) setProjectId(workspace.projects[0]?.id || ''); }, [workspace, projectId]);
   const file = project?.files.find(f => f.path === selectedFile) || project?.files[0];
