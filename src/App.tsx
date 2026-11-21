@@ -11,8 +11,7 @@ const keylessAI = async (mode: 'plan' | 'build', prompt: string, projectName?: s
   return JSON.stringify(data);
 };
 const parseAIJson = <T,>(value: string): T => {
-  const clean = value.replace(/^\\s*\`\`\`(?:json)?/i, '').replace(/\`\`\`\\s*$/i, '').trim();
-  return JSON.parse(clean) as T;
+  return JSON.parse(value) as T;
 };
 
 type FileItem = { path: string; content: string };
