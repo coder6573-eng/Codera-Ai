@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 const keylessAI = async (mode: 'plan' | 'build', prompt: string, projectName?: string, files?: FileItem[], plan?: string[]) => {
   const response = await fetch('/api/generate', {
@@ -43,7 +43,20 @@ export default function App() {
   const [error, setError] = useState('');
   const [mobilePreview, setMobilePreview] = useState(false);
   const [history, setHistory] = useState<string[]>([]);
+  const [runtimeErrors, setRuntimeErrors] = useState<string[]>([]);
+  const previewFrame = useRef<HTMLIFrameElement>(null);
   useEffect(() => { localStorage.setItem('codera-workspaces-v1', JSON.stringify(workspaces)); }, [workspaces]);
+  useEffect(() => {
+    const receivePreviewError = (event: MessageEvent) => {
+      if (event.source !== previewFrame.current?.contentWindow) return;
+      const data = event.data as { source?: string; message?: string } | null;
+      if (!data || data.source !== 'codera-preview' || typeof data.message !== 'string') return;
+      setRuntimeErrors(previous => [...previous, data.message!.slice(0, 500)].filter((item, index, all) => all.indexOf(item) === index).slice(-8));
+    };
+    window.addEventListener('message', receivePreviewError);
+    return () => window.removeEventListener('message', receivePreviewError);
+  }, []);
+  useEffect(() => { setRuntimeErrors([]); }, [project?.id, project?.updated]);
   const workspace = workspaces.find(w => w.id === workspaceId) || workspaces[0];
   const project = workspace?.projects.find(p => p.id === projectId) || workspace?.projects[0];
   useEffect(() => { if (!workspaceId && workspace) setWorkspaceId(workspace.id); }, [workspaceId, workspace]);
@@ -57,6 +70,13 @@ export default function App() {
     doc = doc.replace(/<link[^>]+href=["'][^"']+\.css["'][^>]*>/gi, '').replace(/<script[^>]+src=["'][^"']+\.js["'][^>]*><\/script>/gi, '');
     doc = doc.replace(/<\/head>/i, '<style>' + css.replace(/<\/style/gi, '<\\/style') + '</style></head>');
     if (js) doc = doc.replace(/<\/body>/i, '<script>' + js.replace(/<\/script/gi, '<\\/script') + '</script></body>');
+    const monitor = '<script>(() => {
+      const report = (kind, value) => { const message = String(value && (value.message || value.reason || value) || kind).slice(0, 500); parent.postMessage({ source: \'codera-preview\', message: kind + \' : \' + message }, \'*\'); };
+      addEventListener(\'error\', event => report(\'Runtime error\', event.message || \'Unknown script error\'));
+      addEventListener(\'unhandledrejection\', event => report(\'Unhandled promise rejection\', event.reason));
+      const original = console.error.bind(console); console.error = (...args) => { report(\'Console error\', args.join(\' \')); original(...args); };
+    })();</script>';
+    doc = doc.replace(/<head([^>]*)>/i, '<head$1>' + monitor);
     return doc;
   }, [project]);
   const updateProject = (fn: (p: Project) => Project) => {
@@ -112,6 +132,22 @@ export default function App() {
       setStatus('Build needs attention');
     } finally { setBusy(false); }
   };
+  const runRepair = async () => {
+    if (!project || !runtimeErrors.length || busy) return;
+    const issues = runtimeErrors.join('\n');
+    setBusy(true); setError(''); setStatus('Diagnosing preview errors…');
+    try {
+      const repairPrompt = 'Repair the current website based on these browser diagnostics. Fix root causes while preserving existing design and working features. Do not hide errors.\n\nBrowser diagnostics:\n' + issues;
+      const raw = await keylessAI('build', repairPrompt, project.name, project.files, project.plan);
+      const data = parseAIJson<{ summary?: string; files?: FileItem[] }>(raw);
+      const safe = Array.isArray(data.files) ? data.files.filter(f => f && typeof f.path === 'string' && typeof f.content === 'string' && !f.path.startsWith('/') && !f.path.split('/').includes('..') && /^[a-zA-Z0-9._/-]+$/.test(f.path) && f.content.length <= 250000).slice(0, 20) : [];
+      if (!safe.some(f => f.path === 'index.html')) throw new Error('The repair did not return a valid index.html.');
+      if (!safe.some(f => f.path === 'styles.css')) safe.push({ path: 'styles.css', content: '' });
+      updateProject(p => ({ ...p, files: safe, updated: Date.now() }));
+      setSelectedFile('index.html'); setPanel('preview'); setRuntimeErrors([]); setStatus('Repair applied · check the preview again');
+    } catch (e) { setError(e instanceof Error ? e.message : 'Preview repair failed.'); setStatus('Repair needs attention'); }
+    finally { setBusy(false); }
+  };
   const download = () => {
     if (!project) return;
     const text = project.files.map(f => '===== ' + f.path + ' =====\n' + f.content).join('\n\n');
@@ -151,8 +187,8 @@ export default function App() {
           </div>
           <div className="right-column">
             <div className="preview-bar"><div><button className={panel === 'preview' ? 'active' : ''} onClick={() => setPanel('preview')}>◉ Preview</button><button className={panel === 'code' ? 'active' : ''} onClick={() => setPanel('code')}>‹/› Code <small>{project.files.length}</small></button></div><div><button className={mobilePreview ? '' : 'active'} onClick={() => setMobilePreview(false)}>▣</button><button className={mobilePreview ? 'active' : ''} onClick={() => setMobilePreview(true)}>▯</button><button onClick={() => setPanel('preview')}>↻</button></div></div>
-            {panel === 'preview' ? <div className="preview-stage"><div className={'browser ' + (mobilePreview ? 'mobile' : '')}><div className="browser-top"><span>● ● ●</span><label>⌕ &nbsp;preview.local</label><b>···</b></div><iframe title="Website preview" sandbox="allow-scripts allow-forms allow-modals" srcDoc={preview}/></div></div> : <div className="code-panel"><nav>{project.files.map(f => <button key={f.path} className={file?.path === f.path ? 'active' : ''} onClick={() => setSelectedFile(f.path)}>▤ {f.path}</button>)}</nav><div className="editor"><header>{file?.path}<small>EDITABLE</small></header><textarea spellCheck={false} value={file?.content || ''} onChange={e => updateProject(p => ({ ...p, files: p.files.map(f => f.path === file?.path ? { ...f, content: e.target.value } : f), updated: Date.now() }))}/></div></div>}
-            <div className="preview-foot"><span>● {panel === 'preview' ? 'Live preview' : 'Source editor'}</span><span>{project.files.length} files · HTML, CSS & JS</span></div>
+            {panel === 'preview' ? <div className="preview-stage"><div className={'browser ' + (mobilePreview ? 'mobile' : '')}><div className="browser-top"><span>● ● ●</span><label>⌕ &nbsp;preview.local</label><b>···</b></div><iframe ref={previewFrame} title="Website preview" sandbox="allow-scripts allow-forms allow-modals" srcDoc={preview}/></div></div> : <div className="code-panel"><nav>{project.files.map(f => <button key={f.path} className={file?.path === f.path ? 'active' : ''} onClick={() => setSelectedFile(f.path)}>▤ {f.path}</button>)}</nav><div className="editor"><header>{file?.path}<small>EDITABLE</small></header><textarea spellCheck={false} value={file?.content || ''} onChange={e => updateProject(p => ({ ...p, files: p.files.map(f => f.path === file?.path ? { ...f, content: e.target.value } : f), updated: Date.now() }))}/></div></div>}
+            <div className="preview-foot"><span>● {panel === 'preview' ? 'Live preview' : 'Source editor'}</span><span>{project.files.length} files · HTML, CSS & JS</span></div>{runtimeErrors.length > 0 && <div className="runtime-panel"><div><b>Preview diagnostics</b><small>{runtimeErrors.length} issue{runtimeErrors.length === 1 ? '' : 's'} detected</small></div><ul>{runtimeErrors.slice(-4).map((issue, index) => <li key={index}>{issue}</li>)}</ul><button className="primary" disabled={busy} onClick={runRepair}>{busy ? 'Repairing…' : 'Fix preview issues →'}</button></div>}
           </div>
         </section>
         <footer className="page-foot"><span>Built with <b>Codera AI</b></span><span>Ideas into interfaces.</span></footer>
