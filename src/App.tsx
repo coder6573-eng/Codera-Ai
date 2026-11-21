@@ -96,7 +96,7 @@ export default function App() {
     doc = doc.replace(/<link[^>]+href=["'][^"']+\.css["'][^>]*>/gi, '').replace(/<script[^>]+src=["'][^"']+\.js["'][^>]*><\/script>/gi, '');
     doc = doc.replace(/<\/head>/i, '<style>' + css.replace(/<\/style/gi, '<\\/style') + '</style></head>');
     if (js) doc = doc.replace(/<\/body>/i, '<script>' + js.replace(/<\/script/gi, '<\\/script') + '</script></body>');
-    const monitor = \`<script>(() => {
+    const monitor = `<script>(() => {
       const send = payload => parent.postMessage({ source: 'codera-preview', ...payload }, '*');
       const report = (kind, value) => { const message = String(value && (value.message || value.reason || value) || kind).slice(0, 500); send({ kind: 'runtime', message: kind + ': ' + message }); };
       const check = (name, passed, message) => send({ kind: 'check', name, status: passed ? 'pass' : 'fail', message });
@@ -151,7 +151,7 @@ export default function App() {
         forms.forEach((form, index) => send({ kind: 'check', name: 'Form validation ' + (index + 1), status: 'pass', message: form.checkValidity() ? 'Form fields satisfy native constraints.' : 'Required fields correctly block incomplete submission.' }));
         send({ kind: 'ready' });
       });
-    })();</script>\`;
+    })();</script>`;
     doc = doc.replace(/<head([^>]*)>/i, '<head$1>' + monitor);
     return doc;
   }, [project]);
