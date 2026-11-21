@@ -250,7 +250,7 @@ export default function App() {
   const deleteProject = () => {
     if (!workspace || !project || workspace.projects.length < 2) return;
     const rest = workspace.projects.filter(p => p.id !== project.id);
-    setWorkspaces(prev => prev.map(w => w.id === workspace.id ? { ...w, projects: rest } : w)); setProjectId(rest[0].id);
+    setWorkspaces(prev => prev.map(w => w.id === workspace.id ? { ...w, projects: rest } : w)); setProjectId(rest[0].id); setAutoTestRepairEnabled(false);
   };
   return <div className="shell">
     <aside className={'sidebar ' + (mobileMenu ? 'open' : '')}>
