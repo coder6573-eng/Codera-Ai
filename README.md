@@ -29,6 +29,13 @@ npm install
 npm run dev
 ```
 
+Run the browser regression suite in another terminal:
+
+```bash
+npx playwright install chromium
+npm run test:e2e
+```
+
 ## Cloudflare Pages
 
 - Build command: `npm run build`
