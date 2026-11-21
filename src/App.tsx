@@ -1,26 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
 
-type PuterAI = { chat: (prompt: string, options?: { model?: string; temperature?: number }) => Promise<unknown> };
-declare global { interface Window { puter?: { ai: PuterAI } } }
-
-const extractAIText = (value: unknown): string => {
-  if (typeof value === 'string') return value;
-  if (value && typeof value === 'object') {
-    const v = value as { message?: { content?: unknown }; content?: unknown; text?: unknown };
-    if (typeof v.message?.content === 'string') return v.message.content;
-    if (typeof v.content === 'string') return v.content;
-    if (typeof v.text === 'string') return v.text;
-  }
-  return '';
+const keylessAI = async (mode: 'plan' | 'build', prompt: string, projectName?: string, files?: FileItem[]) => {
+  const response = await fetch('/api/generate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ mode, prompt, projectName, files })
+  });
+  const data = await response.json() as { error?: string; steps?: string[]; summary?: string; files?: FileItem[] };
+  if (!response.ok) throw new Error(data.error || 'Kilo Auto Free could not complete the request.');
+  return JSON.stringify(data);
 };
 const parseAIJson = <T,>(value: string): T => {
-  const clean = value.replace(/^\s*\`\`\`(?:json)?/i, '').replace(/\`\`\`\s*$/i, '').trim();
+  const clean = value.replace(/^\\s*\`\`\`(?:json)?/i, '').replace(/\`\`\`\\s*$/i, '').trim();
   return JSON.parse(clean) as T;
-};
-const keylessAI = async (system: string, user: string) => {
-  if (!window.puter?.ai) throw new Error('Keyless AI is still loading. Try again in a moment.');
-  const result = await window.puter.ai.chat(system + '\\n\\n' + user, { model: 'gpt-5.3-codex', temperature: 0.25 });
-  return extractAIText(result);
 };
 
 type FileItem = { path: string; content: string };
@@ -88,15 +80,12 @@ export default function App() {
     if (!prompt.trim() || busy) { if (!prompt.trim()) setError('Describe your idea first.'); return; }
     setBusy(true); setError(''); setStatus('Turning your idea into a plan…');
     try {
-      const raw = await keylessAI(
-        'You are Codera, a senior product engineer. Return ONLY valid JSON with 4 to 7 concrete ordered steps. Include structure, visual design, implementation, responsive behaviour, and validation. Do not use markdown.',
-        'Project: ' + (project?.name || 'Untitled') + '\\nUser request: ' + prompt.trim()
-      );
+      const raw = await keylessAI('plan', prompt.trim(), project?.name);
       const data = parseAIJson<{ steps?: string[] }>(raw);
       const steps = Array.isArray(data.steps) ? data.steps.filter(s => typeof s === 'string' && s.trim()).slice(0, 8) : [];
       if (!steps.length) throw new Error('The AI plan was empty. Please retry.');
       updateProject(p => ({ ...p, plan: steps, updated: Date.now() }));
-      setStatus('Plan ready · keyless AI');
+      setStatus('Plan ready · Kilo Auto Free');
       setHistory(prev => [prompt.trim(), ...prev].slice(0, 6));
     } catch (e) {
       updateProject(p => ({ ...p, plan: planFor(prompt.trim()), updated: Date.now() }));
@@ -109,10 +98,7 @@ export default function App() {
     setBusy(true); setError(''); setHistory(prev => [prompt.trim(), ...prev].slice(0, 6));
     try {
       setStatus('Planning your build…');
-      const raw = await keylessAI(
-        'You are Codera, a senior frontend engineer. Generate a complete polished responsive website using plain HTML, CSS and browser JavaScript. Return ONLY valid JSON with this shape: {"summary":"short summary","files":[{"path":"index.html","content":"..."},{"path":"styles.css","content":"..."},{"path":"app.js","content":"..."}]}. Always include index.html and styles.css. Keep interactions functional, accessible and mobile-first. Do not use external dependencies, trackers, remote scripts, API keys or secrets. Improve the existing files when relevant. Paths must be relative.',
-        'Project: ' + project.name + '\\nUser request: ' + prompt.trim() + '\\nCurrent files: ' + JSON.stringify(project.files)
-      );
+      const raw = await keylessAI('build', prompt.trim(), project.name, project.files);
       setStatus('Validating generated files…');
       const data = parseAIJson<{ summary?: string; files?: FileItem[] }>(raw);
       const safe = Array.isArray(data.files)
@@ -121,7 +107,7 @@ export default function App() {
       if (!safe.some(f => f.path === 'index.html')) throw new Error('The generated project did not contain index.html. Please retry.');
       if (!safe.some(f => f.path === 'styles.css')) safe.push({ path: 'styles.css', content: '' });
       updateProject(p => ({ ...p, files: safe, plan: p.plan.length ? p.plan : planFor(prompt.trim()), updated: Date.now() }));
-      setSelectedFile('index.html'); setPanel('preview'); setPrompt(''); setStatus('Build complete · keyless AI');
+      setSelectedFile('index.html'); setPanel('preview'); setPrompt(''); setStatus('Build complete · Kilo Auto Free');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Build failed.');
       setStatus('Build needs attention');
@@ -141,13 +127,13 @@ export default function App() {
   return <div className="shell">
     <aside className={'sidebar ' + (mobileMenu ? 'open' : '')}>
       <div className="brand"><span className="brand-icon">c</span><b>codera<span>.ai</span></b><button className="mobile-close" onClick={() => setMobileMenu(false)}>×</button></div>
-      <button className="workspace-switch" onClick={() => setWorkspaceMenu(!workspaceMenu)}><span className="workspace-avatar">{(workspace?.name || 'W').slice(0,1).toUpperCase()}</span><span><b>{workspace?.name || 'Workspace'}</b><small>Free workspace</small></span><span className="chevron">⌄</span></button>
+      <button className="workspace-switch" onClick={() => setWorkspaceMenu(!workspaceMenu)}><span className="workspace-avatar">{(workspace?.name || 'W').slice(0,1).toUpperCase()}</span><span><b>{workspace?.name || 'Workspace'}</b><small>Local workspace</small></span><span className="chevron">⌄</span></button>
       {workspaceMenu && <div className="workspace-menu">{workspaces.map(w => <button key={w.id} onClick={() => { setWorkspaceId(w.id); setProjectId(w.projects[0]?.id || ''); setWorkspaceMenu(false); }}>{w.name}{w.id === workspace?.id ? '  ✓' : ''}</button>)}<button onClick={() => { setNewWorkspace(true); setWorkspaceMenu(false); }}>＋ Create workspace</button></div>}
       <div className="side-label">WORKSPACE <button onClick={createProject}>＋</button></div>
       <button className="nav-active">▦ <span>Projects</span><small>{workspace?.projects.length || 0}</small></button>
       <div className="project-list">{workspace?.projects.map(p => <button key={p.id} className={p.id === project?.id ? 'selected' : ''} onClick={() => { setProjectId(p.id); setMobileMenu(false); }}><i/> {p.name}</button>)}</div>
       <button className="new-project" onClick={createProject}>＋ New project</button>
-      <div className="sidebar-bottom"><div className="plan-note"><b>Build workspace <span>FREE</span></b><p>Your ideas, one build at a time.</p><small>AI: keyless by default</small></div><div className="profile"><span>C</span><div><b>Creator</b><small>Personal account</small></div></div></div>
+      <div className="sidebar-bottom"><div className="plan-note"><b>Build workspace <span>FREE</span></b><p>Your ideas, one build at a time.</p><small>AI: Kilo Auto Free · no key</small></div><div className="profile"><span>C</span><div><b>Creator</b><small>Personal account</small></div></div></div>
     </aside>
     <main className="main">
       <header className="topbar"><div className="crumbs"><button className="menu-button" onClick={() => setMobileMenu(true)}>☰</button><span>Projects</span><b>›</b><strong>{project?.name || 'New project'}</strong></div><div className="top-actions"><span className="saved"><i/> Saved locally</span><button className="export" onClick={download}>↧ Export</button><button className="preview-top" onClick={() => setPanel('preview')}>◉ Preview</button></div></header>
@@ -156,7 +142,7 @@ export default function App() {
         <section className="workspace-grid">
           <div className="left-column">
             <div className="mode-switch"><button className={mode === 'plan' ? 'active' : ''} onClick={() => setMode('plan')}>◇ Plan</button><button className={mode === 'build' ? 'active' : ''} onClick={() => setMode('build')}>✧ Build</button><small>{mode === 'plan' ? 'Think it through' : 'Make it real'}</small></div>
-            <div className="prompt-card"><div className="prompt-head"><b>✧ {mode === 'plan' ? 'PLAN YOUR PROJECT' : 'WHAT SHOULD WE BUILD?'}</b><span><i/> Puter · keyless</span></div><textarea value={prompt} onChange={e => setPrompt(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) mode === 'plan' ? runPlan() : runBuild(); }} placeholder={mode === 'plan' ? 'Describe your idea and we’ll break it into clear steps…' : 'Describe the website you want to create or the changes you need…'} />
+            <div className="prompt-card"><div className="prompt-head"><b>✧ {mode === 'plan' ? 'PLAN YOUR PROJECT' : 'WHAT SHOULD WE BUILD?'}</b><span><i/> Kilo Auto Free</span></div><textarea value={prompt} onChange={e => setPrompt(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) mode === 'plan' ? runPlan() : runBuild(); }} placeholder={mode === 'plan' ? 'Describe your idea and we’ll break it into clear steps…' : 'Describe the website you want to create or the changes you need…'} />
               <div className="suggestions">{(mode === 'build' ? ['Landing page', 'Dashboard', 'Portfolio'] : ['Define users', 'Plan sections', 'List interactions']).map(s => <button key={s} onClick={() => setPrompt(p => p ? p + ' ' + s : s)}>{s}</button>)}</div>
               <div className="prompt-foot"><small>⌘ ↵ to {mode}</small><button className="primary" disabled={busy || !prompt.trim()} onClick={mode === 'plan' ? runPlan : runBuild}>{busy ? '◌ Building…' : mode === 'plan' ? 'Create plan →' : '✧ Build project'}</button></div></div>
             {error && <div className="error">{error}<button onClick={() => setError('')}>×</button></div>}
