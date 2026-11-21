@@ -123,10 +123,10 @@ export default function App() {
         const unlabeledFields = fields.filter(el => !(el.getAttribute('aria-label') || el.getAttribute('aria-labelledby') || el.id && document.querySelector('label[for="' + CSS.escape(el.id) + '"]') || el.closest('label')));
         check('Form field labels', unlabeledFields.length === 0, unlabeledFields.length ? unlabeledFields.length + ' form field(s) need labels.' : fields.length + ' form field(s) have labels.');
         const forms = [...document.forms];
-        const formsWithoutSubmit = forms.filter(form => !form.querySelector('button[type=submit],input[type=submit]'));
+        const formsWithoutSubmit = forms.filter(form => !form.querySelector('button:not([type]),button[type=submit],input[type=submit]'));
         check('Form submit controls', formsWithoutSubmit.length === 0, formsWithoutSubmit.length ? formsWithoutSubmit.length + ' form(s) have no submit control.' : forms.length + ' form(s) have submit controls.');
         const links = [...document.querySelectorAll('a')];
-        const brokenAnchors = links.filter(link => !link.getAttribute('href') || link.getAttribute('href').startsWith('#') && link.getAttribute('href').length > 1 && !document.getElementById(decodeURIComponent(link.getAttribute('href').slice(1))));
+        const brokenAnchors = links.filter(link => !link.getAttribute('href') || link.getAttribute('href') === '#' || link.getAttribute('href').startsWith('#') && link.getAttribute('href').length > 1 && !document.getElementById(decodeURIComponent(link.getAttribute('href').slice(1))));
         check('Navigation targets', brokenAnchors.length === 0, brokenAnchors.length ? brokenAnchors.length + ' navigation link(s) have missing or empty destinations.' : links.length + ' link(s) have valid destinations.');
         const images = [...document.images]; const missingAlt = images.filter(img => !img.hasAttribute('alt'));
         check('Image alternatives', missingAlt.length === 0, missingAlt.length ? missingAlt.length + ' image(s) are missing alt text.' : images.length + ' image(s) have alt attributes.');
