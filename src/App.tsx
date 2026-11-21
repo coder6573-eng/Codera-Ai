@@ -19,7 +19,7 @@ type Project = { id: string; name: string; files: FileItem[]; plan: string[]; up
 type Workspace = { id: string; name: string; projects: Project[] };
 const id = () => Math.random().toString(36).slice(2, 10);
 const starterFiles: FileItem[] = [
-  { path: 'index.html', content: '<!doctype html>\n<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Your next idea</title><link rel="stylesheet" href="styles.css"></head><body><main class="hero"><span class="eyebrow">YOUR CANVAS IS READY</span><h1>Make something<br><span>remarkable.</span></h1><p>Describe what you want to build. Codera will help turn your idea into a working website.</p><a href="#start">Explore the possibilities ↗</a></main><script src="app.js"></script></body></html>' },
+  { path: 'index.html', content: '<!doctype html>\n<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Your next idea</title><link rel="stylesheet" href="styles.css"></head><body><main class="hero" id="start"><span class="eyebrow">YOUR CANVAS IS READY</span><h1>Make something<br><span>remarkable.</span></h1><p>Describe what you want to build. Codera will help turn your idea into a working website.</p><a href="#start">Explore the possibilities ↗</a></main><script src="app.js"></script></body></html>' },
   { path: 'styles.css', content: ':root{font-family:Inter,system-ui,sans-serif;color:#f5f4ff;background:#0c1020}*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(ellipse at 75% 20%,#27205a 0,transparent 42%),#0c1020}.hero{max-width:850px;margin:auto;padding:15vh 8vw}.eyebrow{font-size:11px;letter-spacing:.2em;color:#a99aff;font-weight:700}h1{font-size:clamp(48px,9vw,92px);line-height:.98;letter-spacing:-.07em;margin:24px 0}h1 span{background:linear-gradient(90deg,#a99aff,#72d9ff);color:transparent;background-clip:text}.hero p{max-width:470px;color:#a9adc3;font-size:17px;line-height:1.7}.hero a{display:inline-block;margin-top:28px;padding:14px 18px;border:1px solid #5b5488;border-radius:12px;color:#fff;text-decoration:none;background:#ffffff0b}' },
   { path: 'app.js', content: "document.querySelector('a')?.addEventListener('click',()=>console.log('Welcome to your project'));" }
 ];
@@ -146,12 +146,12 @@ export default function App() {
         let navigationFailures = 0; let navigationTests = 0;
         links.filter(link => link.getAttribute('href')?.startsWith('#') && link.getAttribute('href') !== '#').forEach(link => {
           try {
-            history.replaceState(null, '', location.pathname + location.search);
+            location.hash = '';
             link.click(); navigationTests++;
             if (location.hash !== link.getAttribute('href')) navigationFailures++;
           } catch { navigationFailures++; }
         });
-        history.replaceState(null, '', location.pathname + location.search + originalHash);
+        location.hash = originalHash;
         check('In-page navigation behavior', navigationFailures === 0, navigationTests ? (navigationTests - navigationFailures) + '/' + navigationTests + ' in-page navigation link(s) reached their target.' : 'No in-page navigation links were present to exercise.');
         const images = [...document.images]; const missingAlt = images.filter(img => !img.hasAttribute('alt'));
         check('Image alternatives', missingAlt.length === 0, missingAlt.length ? missingAlt.length + ' image(s) are missing alt text.' : images.length + ' image(s) have alt attributes.');
