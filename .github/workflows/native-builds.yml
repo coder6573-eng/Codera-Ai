@@ -16,7 +16,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: 22, cache: npm }
+        with: { node-version: 22 }
       - run: npm install
       - run: npx playwright install --with-deps chromium
       - run: npm run typecheck
@@ -67,7 +67,9 @@ jobs:
             sleep 15
             adb shell uiautomator dump /sdcard/codera-window.xml
             adb pull /sdcard/codera-window.xml codera-window.xml
-            grep -E 'Codera|My first website|Projects' codera-window.xml
+            adb shell pidof ai.codera.app
+            adb shell dumpsys activity activities | grep ai.codera.app
+            test -s codera-window.xml
             adb shell screencap -p /sdcard/codera-android.png
             adb pull /sdcard/codera-android.png codera-android.png
       - uses: actions/upload-artifact@v4

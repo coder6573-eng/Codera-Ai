@@ -2,6 +2,7 @@ const { app, BrowserWindow, ipcMain, Menu } = require('electron');
 const path = require('node:path');
 
 const GATEWAY = 'https://ai-gateway.kilo.ai/api/v1/chat/completions';
+if (process.env.CODERA_E2E === '1') app.commandLine.appendSwitch('remote-debugging-port', '9222');
 const createWindow = () => {
   const win = new BrowserWindow({
     width: 1480, height: 960, minWidth: 760, minHeight: 620,
@@ -17,7 +18,6 @@ const createWindow = () => {
   win.webContents.on('will-navigate', (event, url) => {
     if (!url.startsWith('file://')) event.preventDefault();
   });
-  if (process.env.CODERA_E2E === '1') win.webContents.openDevTools({ mode: 'detach' });
   win.loadFile(path.join(__dirname, '..', 'dist', 'index.html'));
 };
 ipcMain.handle('codera:kilo', async (_event, payload) => {
@@ -28,7 +28,7 @@ ipcMain.handle('codera:kilo', async (_event, payload) => {
   if (size > 1800000) throw new Error('The AI request is too large.');
   const response = await fetch(GATEWAY, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-kilocode-mode': 'code' },
+    headers: { 'Content-Type': 'application/json', 'x-kilocode-mode': payload.temperature === 0.25 ? 'plan' : 'code' },
     body: JSON.stringify(payload),
     signal: AbortSignal.timeout(55000)
   });
@@ -41,7 +41,6 @@ ipcMain.handle('codera:kilo', async (_event, payload) => {
 app.whenReady().then(() => {
   app.setAppUserModelId('ai.codera.app');
   Menu.setApplicationMenu(null);
-  if (process.env.CODERA_E2E === '1') app.commandLine.appendSwitch('remote-debugging-port', '9222');
   createWindow();
   app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 });

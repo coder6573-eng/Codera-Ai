@@ -30,7 +30,6 @@ const makePayload = (mode: Mode, prompt: string, projectName: string, files: Fil
   if (repair) messages.push({ role:'user', content:repair });
   return { model:'kilo-auto/free', temperature:isPlan?0.25:0.35, max_tokens:12000, messages };
 };
-const requestGateway = async (payload: Record<string, unknown>): Promise<unknown> => {
   const headers = { 'Content-Type':'application/json', 'x-kilocode-mode': (payload.temperature === 0.25 ? 'plan' : 'code') };
   if (window.coderaDesktop) return window.coderaDesktop.complete(payload);
   if (Capacitor.isNativePlatform()) {
@@ -58,7 +57,9 @@ export const keylessAI = async (mode: Mode, prompt: string, projectName = 'Untit
   }
   const payload = makePayload(mode,prompt,projectName,files,plan);
   const call = async (body:Record<string,unknown>) => {
-    const result = await requestGateway(body) as { choices?:Array<{message?:{content?:string}}> };
+    const result = window.coderaDesktop
+      ? await window.coderaDesktop.complete(body) as { choices?:Array<{message?:{content?:string}}> }
+      : (await CapacitorHttp.request({ url:GATEWAY, method:'POST', headers:{'Content-Type':'application/json','x-kilocode-mode':mode}, data:body, connectTimeout:55000, readTimeout:55000 })).data as { choices?:Array<{message?:{content?:string}}> };
     const content = result.choices?.[0]?.message?.content;
     if (typeof content !== 'string' || !content.trim()) throw new Error('Kilo Auto Free returned an empty response.');
     return content;
