@@ -7,7 +7,7 @@ permissions:
   contents: read
   actions: write
 concurrency:
-  group: native-release-${{ github.ref }}
+  group: native-release-${{ github.ref }}-${{ github.sha }}
   cancel-in-progress: false
 jobs:
   verify-web:
@@ -97,7 +97,7 @@ jobs:
       - run: npm install
       - run: npm run build
       - name: Package portable EXE and installer
-        run: npx electron-builder --win portable nsis --x64
+        run: npx electron-builder --win portable --x64
       - name: Launch and inspect the packaged EXE
         shell: pwsh
         run: |

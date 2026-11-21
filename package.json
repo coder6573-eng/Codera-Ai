@@ -44,16 +44,9 @@
     ],
     "win": {
       "target": [
-        "portable",
-        "nsis"
+        "portable"
       ],
       "artifactName": "Codera-AI-${version}-${arch}-${target}.${ext}"
-    },
-    "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true
     },
     "portable": {
       "artifactName": "Codera-AI-${version}-${arch}-portable.${ext}"
