@@ -75,6 +75,12 @@ export default function App() {
       addEventListener('error', event => report('Runtime error', event.message || 'Unknown script error'));
       addEventListener('unhandledrejection', event => report('Unhandled promise rejection', event.reason));
       const original = console.error.bind(console); console.error = (...args) => { report('Console error', args.join(' ')); original(...args); };
+      addEventListener('load', () => {
+        if (!document.title.trim()) report('Preview check', 'The page is missing a document title.');
+        if (!document.querySelector('meta[name=viewport]')) report('Preview check', 'The page is missing a responsive viewport meta tag.');
+        if (!document.body.textContent.trim() && !document.body.querySelector('img,canvas,svg')) report('Preview check', 'The page body appears empty.');
+        parent.postMessage({ source: 'codera-preview', ready: true }, '*');
+      });
     })();</script>\`;
     doc = doc.replace(/<head([^>]*)>/i, '<head$1>' + monitor);
     return doc;
