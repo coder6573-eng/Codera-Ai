@@ -103,7 +103,10 @@ export default function App() {
       addEventListener('error', event => report('Runtime error', event.message || 'Unknown script error'));
       addEventListener('unhandledrejection', event => report('Unhandled promise rejection', event.reason));
       const original = console.error.bind(console); console.error = (...args) => { report('Console error', args.join(' ')); original(...args); };
-      addEventListener('load', () => {
+      let checksRan = false;
+      const runChecks = () => {
+        if (checksRan) return;
+        checksRan = true;
         check('Document title', !!document.title.trim(), 'A descriptive page title is present.');
         check('Responsive viewport', !!document.querySelector('meta[name=viewport]'), 'Viewport metadata is present.');
         check('Page content', !!(document.body.textContent.trim() || document.body.querySelector('img,canvas,svg')), 'The page contains visible content.');
@@ -148,6 +151,9 @@ export default function App() {
         check('Current viewport fit', !overflow, overflow ? 'The page overflows horizontally at ' + innerWidth + 'px.' : 'No horizontal overflow at ' + innerWidth + 'px.');
         forms.forEach((form, index) => send({ kind: 'check', name: 'Form validation ' + (index + 1), status: 'pass', message: form.checkValidity() ? 'Form fields satisfy native constraints.' : 'Required fields correctly block incomplete submission.' }));
         send({ kind: 'ready' });
+      };
+      addEventListener('message', event => {
+        if (event.source === parent && event.data && event.data.source === 'codera-parent' && event.data.kind === 'ready') runChecks();
       });
     })();</script>`;
     doc = doc.replace(/<head([^>]*)>/i, '<head$1>' + monitor);
@@ -269,7 +275,7 @@ export default function App() {
           </div>
           <div className="right-column">
             <div className="preview-bar"><div><button className={panel === 'preview' ? 'active' : ''} onClick={() => setPanel('preview')}>◉ Preview</button><button className={panel === 'code' ? 'active' : ''} onClick={() => setPanel('code')}>‹/› Code <small>{project.files.length}</small></button></div><div><button className={mobilePreview ? '' : 'active'} onClick={() => setMobilePreview(false)}>▣</button><button className={mobilePreview ? 'active' : ''} onClick={() => setMobilePreview(true)}>▯</button><button onClick={() => setPanel('preview')}>↻</button></div></div>
-            {panel === 'preview' ? <div className="preview-stage"><div className={'browser ' + (mobilePreview ? 'mobile' : '')}><div className="browser-top"><span>● ● ●</span><label>⌕ &nbsp;preview.local</label><b>···</b></div><iframe ref={previewFrame} title="Website preview" sandbox="allow-scripts allow-forms allow-modals" srcDoc={preview}/></div></div> : <div className="code-panel"><nav>{project.files.map(f => <button key={f.path} className={file?.path === f.path ? 'active' : ''} onClick={() => setSelectedFile(f.path)}>▤ {f.path}</button>)}</nav><div className="editor"><header>{file?.path}<small>EDITABLE</small></header><textarea spellCheck={false} value={file?.content || ''} onChange={e => updateProject(p => ({ ...p, files: p.files.map(f => f.path === file?.path ? { ...f, content: e.target.value } : f), updated: Date.now() }))}/></div></div>}
+            {panel === 'preview' ? <div className="preview-stage"><div className={'browser ' + (mobilePreview ? 'mobile' : '')}><div className="browser-top"><span>● ● ●</span><label>⌕ &nbsp;preview.local</label><b>···</b></div><iframe ref={previewFrame} title="Website preview" sandbox="allow-scripts allow-forms allow-modals" srcDoc={preview} onLoad={() => previewFrame.current?.contentWindow?.postMessage({ source: "codera-parent", kind: "ready" }, "*")}/></div></div> : <div className="code-panel"><nav>{project.files.map(f => <button key={f.path} className={file?.path === f.path ? 'active' : ''} onClick={() => setSelectedFile(f.path)}>▤ {f.path}</button>)}</nav><div className="editor"><header>{file?.path}<small>EDITABLE</small></header><textarea spellCheck={false} value={file?.content || ''} onChange={e => updateProject(p => ({ ...p, files: p.files.map(f => f.path === file?.path ? { ...f, content: e.target.value } : f), updated: Date.now() }))}/></div></div>}
             <div className="preview-foot"><span>● {panel === 'preview' ? 'Live preview' : 'Source editor'}</span><span>{project.files.length} files · HTML, CSS & JS</span></div>{(previewChecks.length > 0 || runtimeErrors.length > 0) && <div className="runtime-panel"><div><b>Automated preview tests</b><small>{previewChecks.filter(check => check.status === 'pass').length}/{previewChecks.length} checks passed · {previewChecks.filter(check => check.status === 'fail').length + runtimeErrors.length} failures</small></div><ul>{previewChecks.filter(check => check.status === 'fail').map(check => <li key={check.name}>{check.name}: {check.message}</li>)}{runtimeErrors.slice(-4).map((issue, index) => <li key={'runtime-' + index}>{issue}</li>)}</ul><div className="test-pass-list">{previewChecks.filter(check => check.status === 'pass').map(check => <span key={check.name}>✓ {check.name}</span>)}</div>{(previewChecks.some(check => check.status === 'fail') || runtimeErrors.length > 0) && <button className="primary" disabled={busy} onClick={runRepair}>{busy ? 'Repairing…' : 'Fix test failures →'}</button>}</div>}
           </div>
         </section>
