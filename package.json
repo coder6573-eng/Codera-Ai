@@ -3,7 +3,13 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "scripts": { "dev": "vite", "build": "tsc --noEmit && vite build", "preview": "vite preview", "typecheck": "tsc --noEmit --pretty false" },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit --pretty false",
+    "test:e2e": "playwright test"
+  },
   "dependencies": {
     "@vitejs/plugin-react": "latest",
     "@types/node": "latest",
@@ -13,5 +19,8 @@
     "typescript": "latest",
     "react": "latest",
     "react-dom": "latest"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.1"
   }
 }
