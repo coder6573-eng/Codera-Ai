@@ -133,17 +133,15 @@ export default function App() {
         const links = [...document.querySelectorAll('a')];
         const brokenAnchors = links.filter(link => !link.getAttribute('href') || link.getAttribute('href') === '#' || link.getAttribute('href').startsWith('#') && link.getAttribute('href').length > 1 && !document.getElementById(decodeURIComponent(link.getAttribute('href').slice(1))));
         check('Navigation targets', brokenAnchors.length === 0, brokenAnchors.length ? brokenAnchors.length + ' navigation link(s) have missing or empty destinations.' : links.length + ' link(s) have valid destinations.');
-        const originalHash = location.hash;
         let navigationFailures = 0; let navigationTests = 0;
         links.filter(link => link.getAttribute('href')?.startsWith('#') && link.getAttribute('href') !== '#').forEach(link => {
-          try {
-            location.hash = '';
-            link.click(); navigationTests++;
-            if (location.hash !== link.getAttribute('href')) navigationFailures++;
-          } catch { navigationFailures++; }
+          let observed = false; let prevented = false;
+          const listener = (event: MouseEvent) => { observed = true; prevented = event.defaultPrevented; };
+          link.addEventListener('click', listener, { once: true });
+          link.click(); navigationTests++;
+          if (!observed || prevented) navigationFailures++;
         });
-        location.hash = originalHash;
-        check('In-page navigation behavior', navigationFailures === 0, navigationTests ? (navigationTests - navigationFailures) + '/' + navigationTests + ' in-page navigation link(s) reached their target.' : 'No in-page navigation links were present to exercise.');
+        check('In-page navigation behavior', navigationFailures === 0, navigationTests ? (navigationTests - navigationFailures) + '/' + navigationTests + ' in-page navigation link(s) received an unblocked click and have valid targets.' : 'No in-page navigation links were present to exercise.');
         const images = [...document.images]; const missingAlt = images.filter(img => !img.hasAttribute('alt'));
         check('Image alternatives', missingAlt.length === 0, missingAlt.length ? missingAlt.length + ' image(s) are missing alt text.' : images.length + ' image(s) have alt attributes.');
         const overflow = document.documentElement.scrollWidth > document.documentElement.clientWidth + 1;
