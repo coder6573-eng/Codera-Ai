@@ -21,3 +21,5 @@
   .preview-bar button{min-width:35px}
   .preview-bar>div:first-child button{padding:0 8px}
 }
+
+.runtime-panel{margin:0 16px 16px;padding:14px 16px;border:1px solid #694b55;background:#211820;border-radius:12px;color:#f1dfe4}.runtime-panel>div{display:flex;justify-content:space-between;gap:12px;align-items:center}.runtime-panel small{color:#c89aa8;font-size:11px}.runtime-panel ul{margin:10px 0;padding-left:18px;color:#e5c6cf;font:11px/1.55 ui-monospace,monospace;overflow-wrap:anywhere}.runtime-panel .primary{border:0;border-radius:9px;padding:9px 13px;background:#a78bfa;color:#11101b;font-weight:700;font-size:12px}.runtime-panel .primary:disabled{opacity:.55;cursor:wait}@media(max-width:700px){.runtime-panel{margin:0 10px 10px;padding:12px}.runtime-panel>div{align-items:flex-start;flex-direction:column;gap:4px}}
