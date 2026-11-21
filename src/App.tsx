@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 
-const keylessAI = async (mode: 'plan' | 'build', prompt: string, projectName?: string, files?: FileItem[]) => {
+const keylessAI = async (mode: 'plan' | 'build', prompt: string, projectName?: string, files?: FileItem[], plan?: string[]) => {
   const response = await fetch('/api/generate', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ mode, prompt, projectName, files })
+    body: JSON.stringify({ mode, prompt, projectName, files, plan })
   });
   const data = await response.json() as { error?: string; steps?: string[]; summary?: string; files?: FileItem[] };
   if (!response.ok) throw new Error(data.error || 'Kilo Auto Free could not complete the request.');
@@ -97,7 +97,7 @@ export default function App() {
     setBusy(true); setError(''); setHistory(prev => [prompt.trim(), ...prev].slice(0, 6));
     try {
       setStatus('Planning your build…');
-      const raw = await keylessAI('build', prompt.trim(), project.name, project.files);
+      const raw = await keylessAI('build', prompt.trim(), project.name, project.files, project.plan);
       setStatus('Validating generated files…');
       const data = parseAIJson<{ summary?: string; files?: FileItem[] }>(raw);
       const safe = Array.isArray(data.files)
