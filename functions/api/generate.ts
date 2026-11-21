@@ -3,9 +3,18 @@ interface FileInput { path: string; content: string }
 interface RequestBody { mode?: 'plan' | 'build'; prompt?: string; projectName?: string; files?: FileInput[] }
 const MAX_PROMPT = 12000;
 const MAX_FILE = 300000;
+const requestWindows = new Map<string, { count: number; reset: number }>();
 const validPath = (p: string) => typeof p === 'string' && p.length <= 120 && !p.startsWith('/') && !p.split('/').includes('..') && /^[a-zA-Z0-9._/-]+$/.test(p);
 const reply = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' } });
 export const onRequestPost = async ({ request, env }: { request: Request; env: Env }) => {
+  const origin = request.headers.get('Origin');
+  if (origin && origin !== new URL(request.url).origin) return reply({ error: 'Cross-origin requests are not allowed.' }, 403);
+  const client = request.headers.get('CF-Connecting-IP') || 'unknown';
+  const now = Date.now();
+  const window = requestWindows.get(client);
+  if (window && window.reset > now && window.count >= 8) return reply({ error: 'Too many build requests. Try again in a minute.' }, 429);
+  if (!window || window.reset <= now) requestWindows.set(client, { count: 1, reset: now + 60000 });
+  else window.count += 1;
   let body: RequestBody;
   try { body = await request.json() as RequestBody; } catch { return reply({ error: 'Request body must be valid JSON.' }, 400); }
   const prompt = typeof body.prompt === 'string' ? body.prompt.trim() : '';
