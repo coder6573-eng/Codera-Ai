@@ -54,7 +54,10 @@ const normalizeFiles = (input: unknown): FileInput[] => {
     output.push({ path: item.path, content: item.content });
   }
   if (!output.some(file => file.path === 'index.html')) throw new Error('The generated project is missing index.html.');
-  if (!output.some(file => file.path === 'styles.css')) output.push({ path: 'styles.css', content: '' });
+  if (!output.some(file => file.path === 'styles.css')) {
+    if (output.length >= MAX_FILES) throw new Error('The project needs a styles.css file and cannot exceed 20 files.');
+    output.push({ path: 'styles.css', content: '' });
+  }
   return output;
 };
 
@@ -83,6 +86,7 @@ export const onRequestPost = async ({ request, env }: { request: Request; env: E
     if (new TextEncoder().encode(rawBody).byteLength > 1800000) return reply({ error: 'The request is too large.' }, 413);
     body = JSON.parse(rawBody) as RequestBody;
   } catch { return reply({ error: 'Request body must be valid JSON.' }, 400); }
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return reply({ error: 'Request body must be a JSON object.' }, 400);
 
   const mode = body.mode;
   if (mode !== 'plan' && mode !== 'build') return reply({ error: 'Choose Plan or Build mode.' }, 400);
