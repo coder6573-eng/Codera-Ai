@@ -39,7 +39,8 @@ npm run dev
 ## Included
 
 - Multiple local workspaces and projects
-- Plan and Build modes powered by Kilo Auto Free
+- Plan and Build modes powered by Kilo Auto Free; Build receives the saved plan as context
+- Structured-output validation, bounded file sizes, safe relative paths, duplicate-path rejection, and one automatic repair attempt for invalid builds
 - Editable HTML/CSS/JS files
 - Sandboxed live preview
 - Desktop/mobile preview
@@ -49,4 +50,4 @@ npm run dev
 - Source export
 - Same-origin server proxy with basic request limits and input validation
 
-Cloud sync, collaboration, deployment, automatic repair passes, and ZIP export can be added later without changing the local workspace model.
+Cloud sync, collaboration, deployment, multi-pass code-quality repair, and ZIP export can be added later without changing the local workspace model. The current engine performs one repair retry when the model returns invalid build JSON or an incomplete file set; it does not yet execute the generated website's code or run browser-based tests.
