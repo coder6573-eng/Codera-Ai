@@ -42,7 +42,9 @@ npm run dev
 - Plan and Build modes powered by Kilo Auto Free; Build receives the saved plan as context
 - Structured-output validation, bounded file sizes, safe relative paths, duplicate-path rejection, and one automatic repair attempt for invalid builds
 - Editable HTML/CSS/JS files
-- Sandboxed live preview
+- Sandboxed live preview with browser-side runtime error reporting
+- Lightweight preview smoke checks for missing page title, viewport metadata, and empty page content
+- One-click AI repair that sends preview diagnostics and current project files back through Kilo Auto Free
 - Desktop/mobile preview
 - Rename/delete project actions
 - Prompt shortcuts and history
@@ -50,4 +52,4 @@ npm run dev
 - Source export
 - Same-origin server proxy with basic request limits and input validation
 
-Cloud sync, collaboration, deployment, multi-pass code-quality repair, and ZIP export can be added later without changing the local workspace model. The current engine performs one repair retry when the model returns invalid build JSON or an incomplete file set; it does not yet execute the generated website's code or run browser-based tests.
+Cloud sync, collaboration, deployment, deeper automated interaction testing (for example, exercising forms and navigation), and ZIP export remain future work. Preview diagnostics catch uncaught JavaScript errors, unhandled promise rejections, console errors, and a few basic document-level smoke checks. They cannot guarantee that every user interaction works; after a repair, review the preview manually. The generation endpoint also performs one retry when the model returns invalid build JSON or an incomplete file set. Kilo's anonymous free-tier quota and upstream availability remain provider-controlled.
