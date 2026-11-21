@@ -10,11 +10,17 @@ User → Workspace → Project → Plan → Build → Project Files → Live Pre
 
 Workspaces, projects, plans, prompts, and generated files are persisted in browser localStorage. There is no required cloud database, authentication backend, or hosted project storage.
 
-## AI
+## AI provider: Kilo Auto Free
 
-The default AI path uses Puter.js directly from the frontend. Puter documents its AI SDK as keyless and serverless, using a user-pays model so Codera does not need to own or expose an API key.
+Plan and Build requests are sent to the Kilo AI Gateway through the same-origin Cloudflare Pages Function at `/api/generate`.
 
-If Puter.js is unavailable, Codera keeps a local planning fallback. The optional Cloudflare `/api/generate` route remains in the repository for future server-side providers, but it is not required for the default setup.
+- Model route: `kilo-auto/free`
+- Gateway: `https://ai-gateway.kilo.ai/api/v1/chat/completions`
+- Authentication: no API key is sent; Kilo documents anonymous access for free models.
+- The app does not ask users to paste a provider key and does not expose any secret in frontend code.
+- Free access is rate-limited and depends on Kilo and upstream provider availability. The underlying model may change as Kilo updates its Auto Free pool.
+
+Kilo Auto Free may route prompts to partner providers with their own data-handling practices. Avoid submitting personal or confidential information.
 
 ## Local development
 
@@ -28,14 +34,12 @@ npm run dev
 - Build command: `npm run build`
 - Output directory: `dist`
 - No database setup is required.
-- No API key is required for the default Puter.js path.
+- No API key or provider secret is required for the default Kilo Auto Free route.
 
 ## Included
 
 - Multiple local workspaces and projects
-- Plan and Build modes
-- Keyless AI generation
-- Local fallback planning
+- Plan and Build modes powered by Kilo Auto Free
 - Editable HTML/CSS/JS files
 - Sandboxed live preview
 - Desktop/mobile preview
@@ -43,6 +47,6 @@ npm run dev
 - Prompt shortcuts and history
 - Responsive mobile workspace
 - Source export
-- Credential-safe server route kept as an optional extension
+- Same-origin server proxy with basic request limits and input validation
 
 Cloud sync, collaboration, deployment, automatic repair passes, and ZIP export can be added later without changing the local workspace model.
