@@ -70,12 +70,12 @@ export default function App() {
     doc = doc.replace(/<link[^>]+href=["'][^"']+\.css["'][^>]*>/gi, '').replace(/<script[^>]+src=["'][^"']+\.js["'][^>]*><\/script>/gi, '');
     doc = doc.replace(/<\/head>/i, '<style>' + css.replace(/<\/style/gi, '<\\/style') + '</style></head>');
     if (js) doc = doc.replace(/<\/body>/i, '<script>' + js.replace(/<\/script/gi, '<\\/script') + '</script></body>');
-    const monitor = '<script>(() => {
-      const report = (kind, value) => { const message = String(value && (value.message || value.reason || value) || kind).slice(0, 500); parent.postMessage({ source: \'codera-preview\', message: kind + \' : \' + message }, \'*\'); };
-      addEventListener(\'error\', event => report(\'Runtime error\', event.message || \'Unknown script error\'));
-      addEventListener(\'unhandledrejection\', event => report(\'Unhandled promise rejection\', event.reason));
-      const original = console.error.bind(console); console.error = (...args) => { report(\'Console error\', args.join(\' \')); original(...args); };
-    })();</script>';
+    const monitor = \`<script>(() => {
+      const report = (kind, value) => { const message = String(value && (value.message || value.reason || value) || kind).slice(0, 500); parent.postMessage({ source: 'codera-preview', message: kind + ': ' + message }, '*'); };
+      addEventListener('error', event => report('Runtime error', event.message || 'Unknown script error'));
+      addEventListener('unhandledrejection', event => report('Unhandled promise rejection', event.reason));
+      const original = console.error.bind(console); console.error = (...args) => { report('Console error', args.join(' ')); original(...args); };
+    })();</script>\`;
     doc = doc.replace(/<head([^>]*)>/i, '<head$1>' + monitor);
     return doc;
   }, [project]);
