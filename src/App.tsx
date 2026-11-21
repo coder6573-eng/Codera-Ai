@@ -34,7 +34,7 @@ const validateGeneratedFiles = (input: unknown): FileItem[] => {
     if (!item || typeof item.path !== 'string' || typeof item.content !== 'string') continue;
     const path = item.path; const parts = path.split('/'); const extension = path.split('.').pop()?.toLowerCase();
     if (!path || path.length > 120 || path.startsWith('/') || path.includes(String.fromCharCode(92)) ||
-      parts.some((part: string) => !part || part === '.' || part === '..' || part.startsWith('.')) ||
+      parts.some((part: string) => !part || part === '.' || part === '..' || part.startsWith('.') || !/^[a-zA-Z0-9_.-]+$/.test(part)) ||
       !/^[a-zA-Z0-9_-]+(?:\\.[a-zA-Z0-9_-]+)?(?:\\/[a-zA-Z0-9_-]+(?:\\.[a-zA-Z0-9_-]+)?)*$/.test(path) ||
       !extension || !allowed.has(extension)) continue;
     if (item.content.length > 250000) continue;
@@ -148,12 +148,12 @@ export default function App() {
     if (!workspace) return;
     const next = makeProject(workspace.projects.length + 1);
     setWorkspaces(prev => prev.map(w => w.id === workspace.id ? { ...w, projects: [next, ...w.projects] } : w));
-    setProjectId(next.id); setSelectedFile('index.html'); setPanel('preview'); setPrompt(''); setMobileMenu(false); setError('');
+    setProjectId(next.id); setSelectedFile('index.html'); setPanel('preview'); setPrompt(''); setMobileMenu(false); setError(''); setAutoTestRepairEnabled(false);
   };
   const addWorkspace = () => {
     if (!workspaceName.trim()) return;
     const next = { id: id(), name: workspaceName.trim(), projects: [] };
-    setWorkspaces(prev => [next, ...prev]); setWorkspaceId(next.id); setProjectId('');
+    setWorkspaces(prev => [next, ...prev]); setWorkspaceId(next.id); setProjectId(''); setAutoTestRepairEnabled(false);
     setWorkspaceName(''); setNewWorkspace(false); setWorkspaceMenu(false);
   };
   const runPlan = async () => {
@@ -232,10 +232,10 @@ export default function App() {
     <aside className={'sidebar ' + (mobileMenu ? 'open' : '')}>
       <div className="brand"><span className="brand-icon">c</span><b>codera<span>.ai</span></b><button className="mobile-close" onClick={() => setMobileMenu(false)}>×</button></div>
       <button className="workspace-switch" onClick={() => setWorkspaceMenu(!workspaceMenu)}><span className="workspace-avatar">{(workspace?.name || 'W').slice(0,1).toUpperCase()}</span><span><b>{workspace?.name || 'Workspace'}</b><small>Local workspace</small></span><span className="chevron">⌄</span></button>
-      {workspaceMenu && <div className="workspace-menu">{workspaces.map(w => <button key={w.id} onClick={() => { setWorkspaceId(w.id); setProjectId(w.projects[0]?.id || ''); setWorkspaceMenu(false); }}>{w.name}{w.id === workspace?.id ? '  ✓' : ''}</button>)}<button onClick={() => { setNewWorkspace(true); setWorkspaceMenu(false); }}>＋ Create workspace</button></div>}
+      {workspaceMenu && <div className="workspace-menu">{workspaces.map(w => <button key={w.id} onClick={() => { setWorkspaceId(w.id); setProjectId(w.projects[0]?.id || ''); setWorkspaceMenu(false); setAutoTestRepairEnabled(false); }}>{w.name}{w.id === workspace?.id ? '  ✓' : ''}</button>)}<button onClick={() => { setNewWorkspace(true); setWorkspaceMenu(false); }}>＋ Create workspace</button></div>}
       <div className="side-label">WORKSPACE <button onClick={createProject}>＋</button></div>
       <button className="nav-active">▦ <span>Projects</span><small>{workspace?.projects.length || 0}</small></button>
-      <div className="project-list">{workspace?.projects.map(p => <button key={p.id} className={p.id === project?.id ? 'selected' : ''} onClick={() => { setProjectId(p.id); setMobileMenu(false); }}><i/> {p.name}</button>)}</div>
+      <div className="project-list">{workspace?.projects.map(p => <button key={p.id} className={p.id === project?.id ? 'selected' : ''} onClick={() => { setProjectId(p.id); setMobileMenu(false); setAutoTestRepairEnabled(false); }}><i/> {p.name}</button>)}</div>
       <button className="new-project" onClick={createProject}>＋ New project</button>
       <div className="sidebar-bottom"><div className="plan-note"><b>Build workspace <span>FREE</span></b><p>Your ideas, one build at a time.</p><small>AI: Kilo Auto Free · no key</small></div><div className="profile"><span>C</span><div><b>Creator</b><small>Personal account</small></div></div></div>
     </aside>
