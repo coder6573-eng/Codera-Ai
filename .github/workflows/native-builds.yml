@@ -35,8 +35,12 @@ jobs:
         with: { node-version: 22 }
       - uses: actions/setup-java@v4
         with: { distribution: temurin, java-version: '21' }
-      - name: Accept installed Android SDK licenses
-        run: yes | $ANDROID_HOME/cmdline-tools/16.0/bin/sdkmanager --licenses || true
+      - name: Verify Android SDK packages
+        run: |
+          test -d "$ANDROID_HOME/platforms"
+          test -d "$ANDROID_HOME/build-tools"
+          ls "$ANDROID_HOME/platforms"
+          ls "$ANDROID_HOME/build-tools"
       - run: npm install
       - run: npm run build
       - run: npx cap add android

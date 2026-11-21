@@ -1,0 +1,10 @@
+{
+  "appId": "ai.codera.app",
+  "appName": "Codera AI",
+  "webDir": "dist",
+  "plugins": {
+    "CapacitorHttp": {
+      "enabled": true
+    }
+  }
+}
