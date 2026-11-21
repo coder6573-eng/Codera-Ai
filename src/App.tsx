@@ -12,8 +12,6 @@ const starterFiles: FileItem[] = [
 const makeProject = (n = 1): Project => ({ id: id(), name: n === 1 ? 'My first website' : 'Untitled project ' + n, files: starterFiles.map(f => ({ ...f })), plan: [], updated: Date.now() });
 const load = (): Workspace[] => { try { const v = localStorage.getItem('codera-workspaces-v1'); if (v) { const parsed = JSON.parse(v) as Workspace[]; if (Array.isArray(parsed) && parsed.length) return parsed; } } catch { /* reset corrupt local state */ } return [{ id: id(), name: 'Personal workspace', projects: [makeProject()] }]; };
 const planFor = (idea: string) => ['Define the structure and main user journey for ' + idea + '.', 'Build a responsive layout with a clear visual hierarchy and accessible interactions.', 'Implement the styling, content, and functional client-side behaviour.', 'Check mobile and desktop layouts, then refine the result.'];
-const Icon = ({ children }: { children: string }) => <span className="glyph" aria-hidden="true">{children}</span>;
-
 export default function App() {
   const [workspaces, setWorkspaces] = useState<Workspace[]>(load);
   const [workspaceId, setWorkspaceId] = useState('');
