@@ -1,35 +1,48 @@
 # Codera AI
 
-A mobile-friendly website-builder workspace. Organize projects, plan a build, generate HTML/CSS/JavaScript through a server-side AI endpoint, edit source files, and inspect a sandboxed live preview.
+A local-first, mobile-friendly AI website builder.
 
-## Stack
-- React + TypeScript + Vite
-- Cloudflare Pages Functions for server-side generation
-- Browser local storage for workspace/project persistence in this first version
-- Kilo OpenAI-compatible chat completions gateway
+## Architecture
+
+User → Workspace → Project → Plan → Build → Project Files → Live Preview
+
+## Storage
+
+Workspaces, projects, plans, prompts, and generated files are persisted in browser localStorage. There is no required cloud database, authentication backend, or hosted project storage.
+
+## AI
+
+The default AI path uses Puter.js directly from the frontend. Puter documents its AI SDK as keyless and serverless, using a user-pays model so Codera does not need to own or expose an API key.
+
+If Puter.js is unavailable, Codera keeps a local planning fallback. The optional Cloudflare `/api/generate` route remains in the repository for future server-side providers, but it is not required for the default setup.
 
 ## Local development
+
 ```bash
 npm install
 npm run dev
 ```
-The workspace and preview run without an AI credential. Build mode requires the Pages Function and a provider credential.
 
 ## Cloudflare Pages
+
 - Build command: `npm run build`
 - Output directory: `dist`
-- Add `KILO_API_KEY` as an encrypted environment variable/secret in Pages settings.
-- Optional: `KILO_MODEL` (default `kilo-auto/free`) and `KILO_BASE_URL` (default Kilo chat completions endpoint).
-- Redeploy after changing secrets.
-
-**Credential safety:** Never commit a real provider key, put it in `src/`, expose it through a `VITE_` variable, or paste it into chat. The Pages Function reads it server-side and never returns it to the browser.
+- No database setup is required.
+- No API key is required for the default Puter.js path.
 
 ## Included
-- Multiple workspaces and projects, persisted in this browser
-- Plan mode with a structured starter plan
-- Build mode through `/api/generate`
-- Editable project files and sandboxed live preview
-- Responsive mobile workspace
-- Source text export
 
-Authentication, database sync, collaboration, ZIP export, automatic repair loops, and cloud project storage are not implemented yet.
+- Multiple local workspaces and projects
+- Plan and Build modes
+- Keyless AI generation
+- Local fallback planning
+- Editable HTML/CSS/JS files
+- Sandboxed live preview
+- Desktop/mobile preview
+- Rename/delete project actions
+- Prompt shortcuts and history
+- Responsive mobile workspace
+- Source export
+- Credential-safe server route kept as an optional extension
+
+Cloud sync, collaboration, deployment, automatic repair passes, and ZIP export can be added later without changing the local workspace model.
