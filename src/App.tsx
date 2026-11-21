@@ -33,7 +33,7 @@ const validateGeneratedFiles = (input: unknown): FileItem[] => {
   for (const item of input) {
     if (!item || typeof item.path !== 'string' || typeof item.content !== 'string') continue;
     const path = item.path; const parts = path.split('/'); const extension = path.split('.').pop()?.toLowerCase();
-    if (!path || path.length > 120 || path.startsWith('/') || path.includes('\\\\') ||
+    if (!path || path.length > 120 || path.startsWith('/') || path.includes(String.fromCharCode(92)) ||
       parts.some((part: string) => !part || part === '.' || part === '..' || part.startsWith('.')) ||
       !/^[a-zA-Z0-9_-]+(?:\\.[a-zA-Z0-9_-]+)?(?:\\/[a-zA-Z0-9_-]+(?:\\.[a-zA-Z0-9_-]+)?)*$/.test(path) ||
       !extension || !allowed.has(extension)) continue;
@@ -194,10 +194,10 @@ export default function App() {
   const runRepair = async () => {
     const failedChecks = previewChecks.filter(check => check.status === 'fail').map(check => check.name + ': ' + check.message);
     if (!project || (!runtimeErrors.length && !failedChecks.length) || busy) return;
-    const issues = [...runtimeErrors, ...failedChecks].join('\\n');
+    const issues = [...runtimeErrors, ...failedChecks].join(String.fromCharCode(10));
     setBusy(true); setError(''); setStatus('Sending preview test failures to the repair engine…');
     try {
-      const repairPrompt = 'Repair the current website based on these automated browser preview test failures. Fix root causes while preserving existing design and working features. Do not hide, suppress, or weaken tests. Return the complete corrected project files.\\n\\nBrowser diagnostics and test failures:\\n' + issues;
+      const repairPrompt = ['Repair the current website based on these automated browser preview test failures. Fix root causes while preserving existing design and working features. Do not hide, suppress, or weaken tests. Return the complete corrected project files.', 'Browser diagnostics and test failures:', issues].join(String.fromCharCode(10, 10));
       const raw = await keylessAI('build', repairPrompt, project.name, project.files, project.plan);
       const data = parseAIJson<{ summary?: string; files?: FileItem[] }>(raw);
       const safe = validateGeneratedFiles(data.files);
