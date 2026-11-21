@@ -70,6 +70,7 @@ export default function App() {
   const [history, setHistory] = useState<string[]>([]);
   const [runtimeErrors, setRuntimeErrors] = useState<string[]>([]);
   const [previewChecks, setPreviewChecks] = useState<Array<{ name: string; status: 'pass' | 'fail'; message: string }>>([]);
+  const [previewReady, setPreviewReady] = useState(false);
   const [autoTestRepairEnabled, setAutoTestRepairEnabled] = useState(false);
   const autoRepairCount = useRef(0);
   const previewFrame = useRef<HTMLIFrameElement>(null);
@@ -79,6 +80,7 @@ export default function App() {
       if (event.source !== previewFrame.current?.contentWindow) return;
       const data = event.data as { source?: string; kind?: string; name?: string; status?: 'pass' | 'fail'; message?: string } | null;
       if (!data || data.source !== 'codera-preview') return;
+      if (data.kind === 'ready') { setPreviewReady(true); return; }
       if (data.kind === 'check' && typeof data.name === 'string' && (data.status === 'pass' || data.status === 'fail')) {
         setPreviewChecks(previous => [...previous.filter(check => check.name !== data.name), { name: data.name!, status: data.status!, message: String(data.message || '').slice(0, 300) }].slice(-20));
         return;
@@ -90,7 +92,7 @@ export default function App() {
     window.addEventListener('message', receivePreviewError);
     return () => window.removeEventListener('message', receivePreviewError);
   }, []);
-  useEffect(() => { setRuntimeErrors([]); setPreviewChecks([]); }, [project?.id, project?.updated]);
+  useEffect(() => { setRuntimeErrors([]); setPreviewChecks([]); setPreviewReady(false); }, [project?.id, project?.updated]);
   const workspace = workspaces.find(w => w.id === workspaceId) || workspaces[0];
   const project = workspace?.projects.find(p => p.id === projectId) || workspace?.projects[0];
   useEffect(() => { if (!workspaceId && workspace) setWorkspaceId(workspace.id); }, [workspaceId, workspace]);
@@ -205,16 +207,16 @@ export default function App() {
     finally { setBusy(false); }
   };
   useEffect(() => {
-    if (!autoTestRepairEnabled || busy || !previewChecks.length) return;
+    if (!autoTestRepairEnabled || busy || !previewReady || !previewChecks.length) return;
     const failures = previewChecks.filter(check => check.status === 'fail');
-    if (failures.length && autoRepairCount.current === 0) {
+    if ((failures.length || runtimeErrors.length) && autoRepairCount.current === 0) {
       autoRepairCount.current = 1;
       void runRepair();
     } else if (!failures.length && previewChecks.every(check => check.status === 'pass') && !runtimeErrors.length) {
       setAutoTestRepairEnabled(false);
       setStatus('Preview checks passed · ready to review');
     }
-  }, [autoTestRepairEnabled, busy, previewChecks, runtimeErrors]);
+  }, [autoTestRepairEnabled, busy, previewChecks, previewReady, runtimeErrors]);
   const download = () => {
     if (!project) return;
     const text = project.files.map(f => '===== ' + f.path + ' =====\n' + f.content).join('\n\n');
