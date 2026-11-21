@@ -136,7 +136,7 @@ export default function App() {
         let navigationFailures = 0; let navigationTests = 0;
         links.filter(link => link.getAttribute('href')?.startsWith('#') && link.getAttribute('href') !== '#').forEach(link => {
           let observed = false; let prevented = false;
-          const listener = (event: MouseEvent) => { observed = true; prevented = event.defaultPrevented; };
+          const listener = event => { observed = true; prevented = event.defaultPrevented; };
           link.addEventListener('click', listener, { once: true });
           link.click(); navigationTests++;
           if (!observed || prevented) navigationFailures++;
