@@ -119,6 +119,20 @@ export default function App() {
         const buttons = [...document.querySelectorAll('button,[role=button]')];
         const unnamedButtons = buttons.filter(el => !(el.getAttribute('aria-label') || el.getAttribute('title') || el.textContent.trim()));
         check('Button labels', unnamedButtons.length === 0, unnamedButtons.length ? unnamedButtons.length + ' button(s) have no accessible name.' : buttons.length + ' button(s) have accessible names.');
+        const safeButtons = buttons.filter(el => el.getAttribute('data-codera-test-safe') === 'true' && el.getAttribute('data-codera-test-target'));
+        let buttonFailures = 0;
+        safeButtons.forEach(button => {
+          try {
+            const target = document.querySelector(button.getAttribute('data-codera-test-target'));
+            if (!target) { buttonFailures++; return; }
+            const expected = button.getAttribute('data-codera-test-state') || 'visible';
+            button.click();
+            const visible = !target.hidden && target.getAttribute('aria-hidden') !== 'true' && getComputedStyle(target).display !== 'none';
+            const passed = expected === 'hidden' ? !visible : visible;
+            if (!passed) { button.click(); buttonFailures++; }
+          } catch { buttonFailures++; }
+        });
+        check('Safe button interactions', buttonFailures === 0, safeButtons.length ? (safeButtons.length - buttonFailures) + '/' + safeButtons.length + ' reversible button interaction(s) passed.' : 'No buttons opted into safe interaction testing; destructive actions are never clicked automatically.');
         const fields = [...document.querySelectorAll('input:not([type=hidden]),select,textarea')];
         const unlabeledFields = fields.filter(el => !(el.getAttribute('aria-label') || el.getAttribute('aria-labelledby') || el.id && document.querySelector('label[for="' + CSS.escape(el.id) + '"]') || el.closest('label')));
         check('Form field labels', unlabeledFields.length === 0, unlabeledFields.length ? unlabeledFields.length + ' form field(s) need labels.' : fields.length + ' form field(s) have labels.');
@@ -128,6 +142,17 @@ export default function App() {
         const links = [...document.querySelectorAll('a')];
         const brokenAnchors = links.filter(link => !link.getAttribute('href') || link.getAttribute('href') === '#' || link.getAttribute('href').startsWith('#') && link.getAttribute('href').length > 1 && !document.getElementById(decodeURIComponent(link.getAttribute('href').slice(1))));
         check('Navigation targets', brokenAnchors.length === 0, brokenAnchors.length ? brokenAnchors.length + ' navigation link(s) have missing or empty destinations.' : links.length + ' link(s) have valid destinations.');
+        const originalHash = location.hash;
+        let navigationFailures = 0; let navigationTests = 0;
+        links.filter(link => link.getAttribute('href')?.startsWith('#') && link.getAttribute('href') !== '#').forEach(link => {
+          try {
+            history.replaceState(null, '', location.pathname + location.search);
+            link.click(); navigationTests++;
+            if (location.hash !== link.getAttribute('href')) navigationFailures++;
+          } catch { navigationFailures++; }
+        });
+        history.replaceState(null, '', location.pathname + location.search + originalHash);
+        check('In-page navigation behavior', navigationFailures === 0, navigationTests ? (navigationTests - navigationFailures) + '/' + navigationTests + ' in-page navigation link(s) reached their target.' : 'No in-page navigation links were present to exercise.');
         const images = [...document.images]; const missingAlt = images.filter(img => !img.hasAttribute('alt'));
         check('Image alternatives', missingAlt.length === 0, missingAlt.length ? missingAlt.length + ' image(s) are missing alt text.' : images.length + ' image(s) have alt attributes.');
         const overflow = document.documentElement.scrollWidth > document.documentElement.clientWidth + 1;
