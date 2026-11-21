@@ -2,7 +2,11 @@ name: CI
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - 'floot-export/**'
   pull_request:
+    paths-ignore:
+      - 'floot-export/**'
   workflow_dispatch:
 permissions:
   contents: read
