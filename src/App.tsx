@@ -1,5 +1,28 @@
 import { useEffect, useMemo, useState } from 'react';
 
+type PuterAI = { chat: (prompt: string, options?: { model?: string; temperature?: number }) => Promise<unknown> };
+declare global { interface Window { puter?: { ai: PuterAI } } }
+
+const extractAIText = (value: unknown): string => {
+  if (typeof value === 'string') return value;
+  if (value && typeof value === 'object') {
+    const v = value as { message?: { content?: unknown }; content?: unknown; text?: unknown };
+    if (typeof v.message?.content === 'string') return v.message.content;
+    if (typeof v.content === 'string') return v.content;
+    if (typeof v.text === 'string') return v.text;
+  }
+  return '';
+};
+const parseAIJson = <T,>(value: string): T => {
+  const clean = value.replace(/^\s*\`\`\`(?:json)?/i, '').replace(/\`\`\`\s*$/i, '').trim();
+  return JSON.parse(clean) as T;
+};
+const keylessAI = async (system: string, user: string) => {
+  if (!window.puter?.ai) throw new Error('Keyless AI is still loading. Try again in a moment.');
+  const result = await window.puter.ai.chat(system + '\\n\\n' + user, { model: 'gpt-5.3-codex', temperature: 0.25 });
+  return extractAIText(result);
+};
+
 type FileItem = { path: string; content: string };
 type Project = { id: string; name: string; files: FileItem[]; plan: string[]; updated: number };
 type Workspace = { id: string; name: string; projects: Project[] };
@@ -63,39 +86,46 @@ export default function App() {
   };
   const runPlan = async () => {
     if (!prompt.trim() || busy) { if (!prompt.trim()) setError('Describe your idea first.'); return; }
-    setBusy(true); setError(''); setStatus('Creating your plan…');
+    setBusy(true); setError(''); setStatus('Turning your idea into a plan…');
     try {
-      const res = await fetch('/api/generate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mode: 'plan', prompt: prompt.trim(), projectName: project?.name }) });
-      const data = await res.json() as { error?: string; steps?: string[] };
-      if (res.ok && Array.isArray(data.steps) && data.steps.length) {
-        updateProject(p => ({ ...p, plan: data.steps!.filter(s => typeof s === 'string').slice(0, 8), updated: Date.now() }));
-        setStatus('AI plan created');
-      } else if (res.status === 503) {
-        updateProject(p => ({ ...p, plan: planFor(prompt.trim()), updated: Date.now() }));
-        setStatus('Starter plan created · AI not configured');
-      } else {
-        throw new Error(data.error || 'Could not create the plan.');
-      }
+      const raw = await keylessAI(
+        'You are Codera, a senior product engineer. Return ONLY valid JSON with 4 to 7 concrete ordered steps. Include structure, visual design, implementation, responsive behaviour, and validation. Do not use markdown.',
+        'Project: ' + (project?.name || 'Untitled') + '\\nUser request: ' + prompt.trim()
+      );
+      const data = parseAIJson<{ steps?: string[] }>(raw);
+      const steps = Array.isArray(data.steps) ? data.steps.filter(s => typeof s === 'string' && s.trim()).slice(0, 8) : [];
+      if (!steps.length) throw new Error('The AI plan was empty. Please retry.');
+      updateProject(p => ({ ...p, plan: steps, updated: Date.now() }));
+      setStatus('Plan ready · keyless AI');
       setHistory(prev => [prompt.trim(), ...prev].slice(0, 6));
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Something went wrong.');
-      setStatus('Plan needs attention');
+      updateProject(p => ({ ...p, plan: planFor(prompt.trim()), updated: Date.now() }));
+      setError((e instanceof Error ? e.message : 'AI plan failed.') + ' Using the local fallback.');
+      setStatus('Plan ready with fallback');
     } finally { setBusy(false); }
   };
   const runBuild = async () => {
     if (!project || !prompt.trim() || busy) return;
-    setBusy(true); setError(''); setStatus('Planning your build…'); setHistory(prev => [prompt.trim(), ...prev].slice(0, 6));
+    setBusy(true); setError(''); setHistory(prev => [prompt.trim(), ...prev].slice(0, 6));
     try {
-      const res = await fetch('/api/generate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt: prompt.trim(), projectName: project.name, files: project.files }) });
-      const data = await res.json() as { error?: string; files?: FileItem[] };
-      if (!res.ok) throw new Error(data.error || 'Build failed.');
-      if (!Array.isArray(data.files) || !data.files.some(f => f.path === 'index.html')) throw new Error('The generated project was incomplete. Please retry.');
-      const safe = data.files.filter(f => f && typeof f.path === 'string' && typeof f.content === 'string' && !f.path.startsWith('/') && !f.path.split('/').includes('..') && f.content.length <= 300000).slice(0, 20);
-      if (!safe.length) throw new Error('No valid project files were returned.');
+      setStatus('Planning your build…');
+      const raw = await keylessAI(
+        'You are Codera, a senior frontend engineer. Generate a complete polished responsive website using plain HTML, CSS and browser JavaScript. Return ONLY valid JSON with this shape: {"summary":"short summary","files":[{"path":"index.html","content":"..."},{"path":"styles.css","content":"..."},{"path":"app.js","content":"..."}]}. Always include index.html and styles.css. Keep interactions functional, accessible and mobile-first. Do not use external dependencies, trackers, remote scripts, API keys or secrets. Improve the existing files when relevant. Paths must be relative.',
+        'Project: ' + project.name + '\\nUser request: ' + prompt.trim() + '\\nCurrent files: ' + JSON.stringify(project.files)
+      );
+      setStatus('Validating generated files…');
+      const data = parseAIJson<{ summary?: string; files?: FileItem[] }>(raw);
+      const safe = Array.isArray(data.files)
+        ? data.files.filter(f => f && typeof f.path === 'string' && typeof f.content === 'string' && !f.path.startsWith('/') && !f.path.split('/').includes('..') && /^[a-zA-Z0-9._/-]+$/.test(f.path) && f.content.length <= 300000).slice(0, 20)
+        : [];
+      if (!safe.some(f => f.path === 'index.html')) throw new Error('The generated project did not contain index.html. Please retry.');
+      if (!safe.some(f => f.path === 'styles.css')) safe.push({ path: 'styles.css', content: '' });
       updateProject(p => ({ ...p, files: safe, plan: p.plan.length ? p.plan : planFor(prompt.trim()), updated: Date.now() }));
-      setSelectedFile('index.html'); setPanel('preview'); setPrompt(''); setStatus('Build complete');
-    } catch (e) { setError(e instanceof Error ? e.message : 'Something went wrong.'); setStatus('Build needs attention'); }
-    finally { setBusy(false); }
+      setSelectedFile('index.html'); setPanel('preview'); setPrompt(''); setStatus('Build complete · keyless AI');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Build failed.');
+      setStatus('Build needs attention');
+    } finally { setBusy(false); }
   };
   const download = () => {
     if (!project) return;
@@ -117,16 +147,16 @@ export default function App() {
       <button className="nav-active">▦ <span>Projects</span><small>{workspace?.projects.length || 0}</small></button>
       <div className="project-list">{workspace?.projects.map(p => <button key={p.id} className={p.id === project?.id ? 'selected' : ''} onClick={() => { setProjectId(p.id); setMobileMenu(false); }}><i/> {p.name}</button>)}</div>
       <button className="new-project" onClick={createProject}>＋ New project</button>
-      <div className="sidebar-bottom"><div className="plan-note"><b>Build workspace <span>FREE</span></b><p>Your ideas, one build at a time.</p><small>AI provider configured by workspace admin</small></div><div className="profile"><span>C</span><div><b>Creator</b><small>Personal account</small></div></div></div>
+      <div className="sidebar-bottom"><div className="plan-note"><b>Build workspace <span>FREE</span></b><p>Your ideas, one build at a time.</p><small>AI: keyless by default</small></div><div className="profile"><span>C</span><div><b>Creator</b><small>Personal account</small></div></div></div>
     </aside>
     <main className="main">
-      <header className="topbar"><div className="crumbs"><button className="menu-button" onClick={() => setMobileMenu(true)}>☰</button><span>Projects</span><b>›</b><strong>{project?.name || 'New project'}</strong></div><div className="top-actions"><span className="saved"><i/> All changes saved</span><button className="export" onClick={download}>↧ Export</button><button className="preview-top" onClick={() => setPanel('preview')}>◉ Preview</button></div></header>
+      <header className="topbar"><div className="crumbs"><button className="menu-button" onClick={() => setMobileMenu(true)}>☰</button><span>Projects</span><b>›</b><strong>{project?.name || 'New project'}</strong></div><div className="top-actions"><span className="saved"><i/> Saved locally</span><button className="export" onClick={download}>↧ Export</button><button className="preview-top" onClick={() => setPanel('preview')}>◉ Preview</button></div></header>
       {!project ? <section className="empty"><div>◇</div><h1>A workspace for your next idea.</h1><p>Create a project to start building with Codera.</p><button className="primary" onClick={createProject}>＋ Create project</button></section> : <>
         <section className="project-heading"><div><small>PROJECT WORKSPACE <span>·</span> {new Date(project.updated).toLocaleDateString()}</small><h1>{project.name}</h1><p>A place to shape your next idea into a working website.</p></div><button className="more" title="Delete project" disabled={workspace.projects.length < 2} onClick={deleteProject}>•••</button></section>
         <section className="workspace-grid">
           <div className="left-column">
             <div className="mode-switch"><button className={mode === 'plan' ? 'active' : ''} onClick={() => setMode('plan')}>◇ Plan</button><button className={mode === 'build' ? 'active' : ''} onClick={() => setMode('build')}>✧ Build</button><small>{mode === 'plan' ? 'Think it through' : 'Make it real'}</small></div>
-            <div className="prompt-card"><div className="prompt-head"><b>✧ {mode === 'plan' ? 'PLAN YOUR PROJECT' : 'WHAT SHOULD WE BUILD?'}</b><span>● Kilo Auto · Free</span></div><textarea value={prompt} onChange={e => setPrompt(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) mode === 'plan' ? runPlan() : runBuild(); }} placeholder={mode === 'plan' ? 'Describe your idea and we’ll break it into clear steps…' : 'Describe the website you want to create or the changes you need…'} /><div className="prompt-foot"><small>⌘ ↵ to {mode}</small><button className="primary" disabled={busy || !prompt.trim()} onClick={mode === 'plan' ? runPlan : runBuild}>{busy ? '◌ Building…' : mode === 'plan' ? 'Create plan →' : '✧ Build project'}</button></div></div>
+            <div className="prompt-card"><div className="prompt-head"><b>✧ {mode === 'plan' ? 'PLAN YOUR PROJECT' : 'WHAT SHOULD WE BUILD?'}</b><span><i/> Puter · keyless</span></div><textarea value={prompt} onChange={e => setPrompt(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) mode === 'plan' ? runPlan() : runBuild(); }} placeholder={mode === 'plan' ? 'Describe your idea and we’ll break it into clear steps…' : 'Describe the website you want to create or the changes you need…'} /><div className="prompt-foot"><small>⌘ ↵ to {mode}</small><button className="primary" disabled={busy || !prompt.trim()} onClick={mode === 'plan' ? runPlan : runBuild}>{busy ? '◌ Building…' : mode === 'plan' ? 'Create plan →' : '✧ Build project'}</button></div></div>
             {error && <div className="error">{error}<button onClick={() => setError('')}>×</button></div>}
             <div className="status"><span>{busy ? '◌' : '✓'}</span>{status}{busy && <small>Working</small>}</div>
             {project.plan.length > 0 && <div className="info-card"><div className="card-title"><b>◇ &nbsp;Project plan</b><small>{project.plan.length} steps</small></div>{project.plan.map((s,i) => <div className="plan-step" key={i}><em>{String(i+1).padStart(2,'0')}</em><span>{s}</span><b>✓</b></div>)}</div>}
