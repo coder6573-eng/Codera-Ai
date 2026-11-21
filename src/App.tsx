@@ -61,10 +61,26 @@ export default function App() {
     setWorkspaces(prev => [next, ...prev]); setWorkspaceId(next.id); setProjectId('');
     setWorkspaceName(''); setNewWorkspace(false); setWorkspaceMenu(false);
   };
-  const runPlan = () => {
-    if (!prompt.trim()) { setError('Describe your idea first.'); return; }
-    updateProject(p => ({ ...p, plan: planFor(prompt.trim()), updated: Date.now() }));
-    setStatus('Plan created'); setError('');
+  const runPlan = async () => {
+    if (!prompt.trim() || busy) { if (!prompt.trim()) setError('Describe your idea first.'); return; }
+    setBusy(true); setError(''); setStatus('Creating your plan…');
+    try {
+      const res = await fetch('/api/generate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mode: 'plan', prompt: prompt.trim(), projectName: project?.name }) });
+      const data = await res.json() as { error?: string; steps?: string[] };
+      if (res.ok && Array.isArray(data.steps) && data.steps.length) {
+        updateProject(p => ({ ...p, plan: data.steps!.filter(s => typeof s === 'string').slice(0, 8), updated: Date.now() }));
+        setStatus('AI plan created');
+      } else if (res.status === 503) {
+        updateProject(p => ({ ...p, plan: planFor(prompt.trim()), updated: Date.now() }));
+        setStatus('Starter plan created · AI not configured');
+      } else {
+        throw new Error(data.error || 'Could not create the plan.');
+      }
+      setHistory(prev => [prompt.trim(), ...prev].slice(0, 6));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Something went wrong.');
+      setStatus('Plan needs attention');
+    } finally { setBusy(false); }
   };
   const runBuild = async () => {
     if (!project || !prompt.trim() || busy) return;
