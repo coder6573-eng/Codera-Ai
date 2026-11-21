@@ -65,6 +65,31 @@ for (const width of [375, 768, 1280]) {
   });
 }
 
+test('failed preview audits are sent to the repair engine and retested', async ({ page }) => {
+  let requests = 0;
+  await page.route('**/api/generate', async route => {
+    requests++;
+    const html = requests === 1
+      ? '<!doctype html><html lang="en"><head><title>Needs repair</title></head><body><main><h1>Needs repair</h1></main></body></html>'
+      : '<!doctype html><html lang="en"><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>Repaired page</title></head><body><main><h1>Repaired page</h1></main></body></html>';
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ summary: 'Fixture build', files: [
+        { path: 'index.html', content: html },
+        { path: 'styles.css', content: 'body{margin:0;font:16px system-ui}' }
+      ] })
+    });
+  });
+  await openApp(page);
+  await page.locator('.prompt-card textarea').fill('Build a simple landing page');
+  await page.getByRole('button', { name: /Build project/ }).click();
+  await expect.poll(() => requests).toBe(2);
+  await expect(page.getByText('Preview checks passed · ready to review')).toBeVisible();
+  await expect(page.getByText('Responsive viewport')).toBeVisible();
+  await expect(page.getByText(/0 failures/)).toBeVisible();
+});
+
 test('workspace and project navigation controls remain functional', async ({ page }) => {
   await openApp(page);
   await page.getByRole('button', { name: /E2E workspace/ }).click();
