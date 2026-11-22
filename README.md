@@ -63,7 +63,7 @@ Codera can also run as local desktop and Android applications. The desktop app u
 - One automatic AI repair attempt after a build when preview checks or runtime diagnostics fail, followed by a fresh audit
 - Manual AI repair for remaining failures, using the diagnostics and current project files
 - Desktop/tablet/mobile preview sizing
-- Rename/delete project actions
+- Project rename and confirmed delete actions
 - Prompt shortcuts and history
 - Version history with restorable checkpoints before AI builds, automatic repairs, and version restores
 - One-time migration of Floot-imported local workspaces, projects, plans, and files into Codera's current local format
