@@ -193,3 +193,14 @@ test('starter website is visibly rendered inside the live preview iframe', async
   await expect(previewFrame.getByText('YOUR CANVAS IS READY')).toBeVisible();
   await expect(previewFrame.locator('body')).toHaveCSS('background-color', 'rgb(12, 16, 32)');
 });
+
+test('builder navigation adapts when resizing between desktop and phone widths', async ({ page }) => {
+  await openApp(page);
+  const nav = page.getByRole('navigation', { name: 'Project navigation' });
+  await page.setViewportSize({ width: 375, height: 820 });
+  await expect(nav.getByRole('button', { name: 'Chat' })).toHaveClass(/active/);
+  await nav.getByRole('button', { name: 'Code' }).click();
+  await expect(nav.getByRole('button', { name: 'Code' })).toHaveClass(/active/);
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await expect(nav.getByRole('button', { name: 'Preview' })).toHaveClass(/active/);
+});
