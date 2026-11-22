@@ -166,3 +166,142 @@ button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px soli
 .version-trigger{display:inline-flex;align-items:center;justify-content:center;border:0;background:transparent;color:#68645f;font-size:11px;padding:8px;white-space:nowrap;cursor:pointer}
 .version-trigger:hover{color:#4e3d88}
 @media(max-width:800px){.version-trigger{padding:8px 6px;font-size:10px}}
+
+
+
+/* Codera workspace refresh: Lovable-inspired light editor surfaces and restrained violet accents. */
+:root{font-family:Inter,"DM Sans",ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#202124;background:#f7f7f5;font-synthesis:none;text-rendering:optimizeLegibility}
+body{background:#f7f7f5;color:#202124}
+.shell{background:#f7f7f5;color:#202124}
+.sidebar{background:#fbfbfa;border-right:1px solid #e8e7e4;box-shadow:1px 0 0 #ffffff}
+.brand{margin-bottom:24px}
+.brand-icon{background:#26232e;box-shadow:none}
+.brand>b{color:#242329}
+.brand>b span{color:#8268d8}
+.workspace-switch{background:#fff;border-color:#e7e5e1;color:#303036;box-shadow:0 1px 2px #15151508}
+.workspace-avatar{background:#eeeafd;color:#7259c7}
+.workspace-menu{background:#fff;border-color:#e7e5e1;box-shadow:0 16px 40px #24202a18}
+.workspace-menu button{color:#48464e}
+.workspace-menu button:hover{background:#f4f2fa}
+.side-label{color:#96928d}
+.nav-active{background:#efecfa;color:#5b48a3}
+.project-list{border-left-color:#e7e4ed}
+.project-list button{color:#77737c}
+.project-list button.selected{background:#f0edfa;color:#4f3d92}
+.project-list i{background:#9079df}
+.new-project{border-color:#ded9eb;background:#fff;color:#6854b4}
+.new-project:hover{background:#f7f5fc;border-color:#c9bee8}
+.plan-note{background:#fff;border-color:#e8e6e2}
+.plan-note b{color:#38363d}
+.plan-note b span{background:#f0edfa;color:#6b54bd}
+.plan-note p,.plan-note small{color:#817d86}
+.profile{border-top-color:#e8e6e2}
+.profile>span{background:#eeebf7;color:#6653aa}
+.profile b{color:#45424a}
+.profile small{color:#92909a}
+.main{background:#f7f7f5}
+.topbar{border-bottom-color:#e8e6e2;background:#fbfbfa}
+.crumbs{color:#96929b}
+.crumbs b{color:#c3c0c7}
+.crumbs strong{color:#36333b}
+.saved{color:#8d8992}
+.saved i{background:#5eaa83}
+.version-trigger{border:1px solid #e7e4e1!important;background:#fff!important;color:#6d6873!important;border-radius:8px}
+.version-menu,.project-menu{background:#fff!important;border:1px solid #e6e3e0!important;box-shadow:0 18px 45px #29243116!important;color:#38353d}
+.version-menu b,.project-menu button{color:#4c4851}
+.version-menu button{border-top-color:#f0eeeb;color:#5e5963}
+.version-menu button:hover,.project-menu button:hover{background:#f7f5fb}
+.export{color:#77727e}
+.export:hover{color:#4f3c91}
+.preview-top{background:#26232e;color:#fff}
+.preview-top:hover{background:#413957}
+.project-heading small{color:#96919b}
+.project-heading h1{color:#26242b}
+.project-heading p{color:#85818a}
+.more{background:#fff;border-color:#e5e2df;color:#706b75}
+.more:hover{background:#f3f1f8;border-color:#d7d0e9}
+.mode-switch{background:#fff;border-color:#e7e4e1;box-shadow:0 1px 2px #1a172008}
+.mode-switch button{color:#817c88}
+.mode-switch button.active{background:#efecfa;color:#5a469d;box-shadow:inset 0 0 0 1px #e2dcf4}
+.mode-switch small{color:#9b97a0}
+.prompt-card{background:#fff;border:1px solid #e6e2e9;box-shadow:0 8px 28px #27212f08}
+.prompt-card:focus-within{border-color:#b7a8e6;box-shadow:0 12px 35px #40305f0c,0 0 0 3px #8d76d412}
+.prompt-head b{color:#7159bd}
+.prompt-head span{background:#f7f6f9;border-color:#ece9ef;color:#797480}
+.prompt-card textarea{color:#29262e}
+.prompt-card textarea::placeholder{color:#a19ca6}
+.prompt-foot{border-top-color:#efedf0}
+.prompt-foot small{color:#9a96a0}
+.primary{background:#292630;color:#fff;box-shadow:none}
+.primary:hover:not(:disabled){background:#4b4260}
+.primary:disabled{opacity:.42}
+.error{background:#fff4f3;border-color:#f1d6d3;color:#a34d49}
+.status{color:#85818a}
+.status>span{color:#5b9c7c}
+.status small{color:#795fc7}
+.info-card{background:#fff;border-color:#e8e5e1;box-shadow:0 1px 2px #17171705}
+.card-title b{color:#3d3942}
+.card-title small{color:#96919a}
+.plan-step{border-top-color:#f0eeeb;color:#6f6a75}
+.plan-step em{color:#806acb}
+.plan-step b{color:#579c7c}
+.history button{border-top-color:#f0eeeb;color:#6f6a75}
+.history button:hover{color:#4f3e91}
+.history p{color:#99949d}
+.right-column{background:#fff;border-color:#e5e2df;box-shadow:0 5px 24px #24202a08}
+.preview-bar{border-bottom-color:#e9e6e2;background:#fff}
+.preview-bar button{color:#827d87}
+.preview-bar button.active{color:#58469b;background:#f0edfa}
+.preview-bar small{background:#f1eff4;color:#78727e}
+.preview-stage{background:#f0efed}
+.browser{border-color:#dcd9d5;box-shadow:0 10px 28px #28232b12}
+.browser-top{background:#f0efed;color:#8e8992}
+.browser-top span{color:#bd8c86}
+.browser-top label{background:#e5e3e0;color:#77727a}
+.preview-foot{border-top-color:#e9e6e2;color:#8b8690;background:#fff}
+.preview-foot span:first-child:before{background:#61a17f}
+.code-panel{background:#fff}
+.code-panel nav{border-right-color:#ece9e5;background:#fbfbfa}
+.code-panel nav button{color:#77727d}
+.code-panel nav button.active{background:#f0edfa;color:#58469b}
+.editor header{border-bottom-color:#ece9e5;color:#5d5862}
+.editor header small{color:#96919b}
+.editor textarea{background:#fff;color:#393540}
+.page-foot{color:#99949d}
+.page-foot b{color:#735cba}
+.empty>div{background:#efecfa;color:#6b54b4}
+.empty h1{color:#29262e}
+.empty p{color:#85808a}
+.modal-backdrop{background:#27232c55;backdrop-filter:blur(4px)}
+.modal{background:#fff;border-color:#e7e3df;box-shadow:0 25px 80px #211c2b20;color:#29262e}
+.modal-symbol{background:#efecfa;color:#6b54b4}
+.modal h2{color:#29262e}
+.modal p{color:#827d87}
+.modal label{color:#5c5762}
+.modal input{border-color:#e4e0e8;background:#fff;color:#29262e}
+.modal input:focus{border-color:#9d8bd9}
+.modal>div:last-child button:first-child{border-color:#e5e1e7;color:#6d6872}
+.project-menu button.danger{color:#b34c4c}
+.runtime-panel{background:#fff;border-top:1px solid #e9e6e2;color:#514c56}
+.runtime-panel li{color:#a34d49}
+.runtime-panel small{color:#8b8690}
+.runtime-panel .test-pass-list span{background:#eff7f1;color:#4b8b68}
+.browser.tablet{max-width:768px}
+@media(max-width:800px){
+ .sidebar{background:#fbfbfa;box-shadow:14px 0 40px #24202a18}
+ .main{background:#f7f7f5}
+ .topbar{background:#fbfbfa}
+ .workspace-grid{gap:13px}
+ .right-column{min-height:490px}
+ .preview-stage{min-height:420px}
+}
+@media(max-width:480px){
+ .main{padding:0 10px}
+ .project-heading h1{font-size:22px}
+ .prompt-card{border-radius:13px}
+ .right-column{border-radius:12px}
+ .preview-stage{padding:8px;min-height:390px}
+ .browser iframe{min-height:350px}
+ .preview-bar button{padding:0 7px}
+ .status{font-size:9px}
+}
