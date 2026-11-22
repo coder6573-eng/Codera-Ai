@@ -105,6 +105,7 @@ export default function App() {
   });
   const [layoutMenuOpen, setLayoutMenuOpen] = useState(false);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
+  const [pendingPlanStart, setPendingPlanStart] = useState(false);
   const [prompt, setPrompt] = useState('');
   const [selectedFile, setSelectedFile] = useState('index.html');
   const [, setMobileMenu] = useState(false);
@@ -301,6 +302,11 @@ export default function App() {
       setActiveView(isPhone ? 'chat' : 'plan');
     } finally { setBusy(false); }
   };
+  useEffect(() => {
+    if (screen !== 'builder' || !project || !pendingPlanStart || busy) return;
+    setPendingPlanStart(false);
+    void runPlan();
+  }, [screen, project?.id, pendingPlanStart, busy]);
   const runBuild = async () => {
     if (!project || !prompt.trim() || busy) return;
     setBusy(true); setError(''); setHistory(prev => [prompt.trim(), ...prev].slice(0, 6));
@@ -420,6 +426,7 @@ export default function App() {
     setError('');
     setMode('plan');
     createProject(idea);
+    setPendingPlanStart(true);
   };
 
   return <div className="shell cd-shell">
