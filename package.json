@@ -48,11 +48,14 @@
       "target": [
         "portable"
       ],
-      "artifactName": "Codera-AI-${version}-${arch}-${target}.${ext}"
+      "artifactName": "Codera-AI-${version}-${arch}.${ext}"
     },
     "portable": {
       "artifactName": "Codera-AI-${version}-${arch}-portable.${ext}"
     },
-    "publish": null
+    "publish": null,
+    "nsis": {
+      "artifactName": "Codera-AI-${version}-${arch}-setup.${ext}"
+    }
   }
 }
