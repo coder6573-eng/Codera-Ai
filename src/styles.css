@@ -151,3 +151,12 @@ button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px soli
 .version-menu>button:hover{background:#f7f5ff;color:#514087}
 .version-menu>button span{font-size:11px;font-weight:600}
 .version-menu>button small{font-size:9px;color:#8d8983}
+
+
+/* Project options menu */
+.project-actions{position:relative;flex:none}
+.project-menu{position:absolute;z-index:35;right:0;top:calc(100% + 7px);width:176px;padding:5px;background:#fff;border:1px solid #e5e1db;border-radius:11px;box-shadow:0 14px 36px #29222e20}
+.project-menu button{display:block;width:100%;padding:9px 10px;border:0;border-radius:7px;background:transparent;text-align:left;color:#514e55;font-size:11px}
+.project-menu button:hover{background:#f5f2ff;color:#514087}
+.project-menu button.danger{color:#a34b4b}
+.project-menu button.danger:hover{background:#fff2f1;color:#8e3434}
