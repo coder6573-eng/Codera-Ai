@@ -14,6 +14,7 @@ try {
   await page.waitForSelector('.shell', { timeout: 15000 });
   if ((await page.title()) !== 'Codera AI') throw new Error('Unexpected desktop app title.');
   await page.getByRole('button', { name: /Build/ }).first().waitFor({ state:'visible' });
+  await page.getByRole('button', { name: 'Open project My first website' }).click();
   const livePreview = page.frameLocator('iframe[title="Website preview"]');
   await livePreview.getByRole('heading', { name: /Make something/ }).waitFor({ state:'visible', timeout: 20000 });
   await livePreview.getByText('YOUR CANVAS IS READY').waitFor({ state:'visible', timeout: 10000 });

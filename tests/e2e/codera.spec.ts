@@ -18,6 +18,10 @@ const fixture = [{
 async function openApp(page: Page) {
   await page.addInitScript((data) => localStorage.setItem('codera-workspaces-v1', JSON.stringify(data)), fixture);
   await page.goto('/');
+  await page.getByRole('button', { name: 'Open project Interaction test site' }).click();
+  if ((page.viewportSize()?.width || 1280) < 768) {
+    await page.getByRole('button', { name: 'Preview' }).click();
+  }
   await expect(page.getByRole('heading', { name: 'Interaction test site' })).toBeVisible();
 }
 
@@ -61,7 +65,7 @@ for (const width of [375, 768, 1280]) {
     const dimensions = await page.locator('html').evaluate(el => ({ client: el.clientWidth, scroll: el.scrollWidth }));
     expect(dimensions.scroll).toBeLessThanOrEqual(dimensions.client + 1);
     const columns = await page.locator('.workspace-grid').evaluate(el => getComputedStyle(el).gridTemplateColumns.split(' ').length);
-    expect(columns).toBe(width <= 800 ? 1 : 2);
+    expect(columns).toBe(width < 768 ? 1 : 2);
     const source = await page.locator('iframe[title="Website preview"]').evaluate(el => (el as HTMLIFrameElement).srcdoc);
     expect(source).toContain('Interaction fixture');
   });
@@ -79,6 +83,7 @@ test('failed preview audits are sent to the repair engine and retested', async (
     ] }) });
   });
   await openApp(page);
+  await page.getByRole('group', { name: 'AI mode' }).getByRole('button', { name: 'Build' }).click();
   await page.locator('.prompt-card textarea').fill('Build a simple landing page');
   await page.getByRole('button', { name: /Build project/ }).click();
   await expect.poll(() => requests).toBe(2);
@@ -89,12 +94,13 @@ test('failed preview audits are sent to the repair engine and retested', async (
 
 test('workspace and project navigation controls remain functional', async ({ page }) => {
   await openApp(page);
+  await page.getByRole('button', { name: 'Back to projects' }).click();
   await page.getByRole('button', { name: /E2E workspace/ }).click();
   await page.getByRole('button', { name: /Create workspace/ }).click();
   await page.getByPlaceholder('e.g. Personal projects').fill('Client work');
   await page.getByRole('button', { name: 'Create workspace' }).click();
   await expect(page.getByRole('heading', { name: 'A workspace for your next idea.' })).toBeVisible();
-  await page.getByRole('button', { name: 'Create project' }).click();
+  await page.locator('.cd-empty-state').getByRole('button', { name: 'Create project' }).click();
   await expect(page.getByRole('heading', { name: 'My first website' })).toBeVisible();
 });
 
@@ -116,6 +122,7 @@ test('Floot-imported local workspaces and files are migrated without losing proj
   });
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Imported website' })).toBeVisible();
+  await page.getByRole('button', { name: 'Open project Imported website' }).click();
   const source = await page.locator('iframe[title="Website preview"]').evaluate(el => (el as HTMLIFrameElement).srcdoc);
   expect(source).toContain('Floot migration preserved');
   expect(source).toContain('Migrated site');
@@ -137,6 +144,7 @@ test('project builds create restorable version-history checkpoints', async ({ pa
     });
   });
   await openApp(page);
+  await page.getByRole('group', { name: 'AI mode' }).getByRole('button', { name: 'Build' }).click();
   await page.locator('.prompt-card textarea').fill('Build a clean responsive landing page');
   await page.getByRole('button', { name: /Build project/ }).click();
   await expect(page.getByText('Build complete · Kilo Auto Free')).toBeVisible();
@@ -175,6 +183,7 @@ test('phone layout keeps version history and ZIP export accessible', async ({ pa
 
 test('starter website is visibly rendered inside the live preview iframe', async ({ page }) => {
   await page.goto('/');
+  await page.getByRole('button', { name: 'Open project My first website' }).click();
   const previewElement = page.locator('iframe[title="Website preview"]');
   const srcDoc = await previewElement.evaluate(el => (el as HTMLIFrameElement).srcdoc);
   expect(srcDoc).toContain('Make something');
