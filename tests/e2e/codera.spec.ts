@@ -83,6 +83,7 @@ test('failed preview audits are sent to the repair engine and retested', async (
     ] }) });
   });
   await openApp(page);
+  await page.getByRole('group', { name: 'AI mode' }).getByRole('button', { name: 'Build' }).click();
   await page.locator('.prompt-card textarea').fill('Build a simple landing page');
   await page.getByRole('button', { name: /Build project/ }).click();
   await expect.poll(() => requests).toBe(2);
@@ -99,7 +100,7 @@ test('workspace and project navigation controls remain functional', async ({ pag
   await page.getByPlaceholder('e.g. Personal projects').fill('Client work');
   await page.getByRole('button', { name: 'Create workspace' }).click();
   await expect(page.getByRole('heading', { name: 'A workspace for your next idea.' })).toBeVisible();
-  await page.getByRole('button', { name: 'Create project' }).click();
+  await page.locator('.cd-empty-state').getByRole('button', { name: 'Create project' }).click();
   await expect(page.getByRole('heading', { name: 'My first website' })).toBeVisible();
 });
 
@@ -143,6 +144,7 @@ test('project builds create restorable version-history checkpoints', async ({ pa
     });
   });
   await openApp(page);
+  await page.getByRole('group', { name: 'AI mode' }).getByRole('button', { name: 'Build' }).click();
   await page.locator('.prompt-card textarea').fill('Build a clean responsive landing page');
   await page.getByRole('button', { name: /Build project/ }).click();
   await expect(page.getByText('Build complete · Kilo Auto Free')).toBeVisible();
