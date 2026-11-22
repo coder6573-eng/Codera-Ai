@@ -18,6 +18,10 @@ const fixture = [{
 async function openApp(page: Page) {
   await page.addInitScript((data) => localStorage.setItem('codera-workspaces-v1', JSON.stringify(data)), fixture);
   await page.goto('/');
+  await page.getByRole('button', { name: 'Open project Interaction test site' }).click();
+  if ((page.viewportSize()?.width || 1280) < 768) {
+    await page.getByRole('button', { name: 'Preview' }).click();
+  }
   await expect(page.getByRole('heading', { name: 'Interaction test site' })).toBeVisible();
 }
 
@@ -61,7 +65,7 @@ for (const width of [375, 768, 1280]) {
     const dimensions = await page.locator('html').evaluate(el => ({ client: el.clientWidth, scroll: el.scrollWidth }));
     expect(dimensions.scroll).toBeLessThanOrEqual(dimensions.client + 1);
     const columns = await page.locator('.workspace-grid').evaluate(el => getComputedStyle(el).gridTemplateColumns.split(' ').length);
-    expect(columns).toBe(width <= 800 ? 1 : 2);
+    expect(columns).toBe(width < 768 ? 1 : 2);
     const source = await page.locator('iframe[title="Website preview"]').evaluate(el => (el as HTMLIFrameElement).srcdoc);
     expect(source).toContain('Interaction fixture');
   });
@@ -175,6 +179,7 @@ test('phone layout keeps version history and ZIP export accessible', async ({ pa
 
 test('starter website is visibly rendered inside the live preview iframe', async ({ page }) => {
   await page.goto('/');
+  await page.getByRole('button', { name: 'Open project My first website' }).click();
   const previewElement = page.locator('iframe[title="Website preview"]');
   const srcDoc = await previewElement.evaluate(el => (el as HTMLIFrameElement).srcdoc);
   expect(srcDoc).toContain('Make something');
