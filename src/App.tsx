@@ -462,6 +462,16 @@ export default function App() {
 
       <main className="cd-dashboard-main">
         <header className="cd-dashboard-header">
+          <div className="cd-mobile-workspace-switch">
+            <button onClick={() => setWorkspaceMenu(value => !value)} aria-expanded={workspaceMenu} aria-label={(workspace?.name || 'Workspace') + ' workspace'}>
+              <span className="cd-workspace-avatar">{(workspace?.name || 'W').slice(0,1).toUpperCase()}</span><b>{workspace?.name || 'Workspace'}</b><ChevronDown size={15}/>
+            </button>
+            {workspaceMenu && <div className="cd-mobile-workspace-menu">
+              <span className="cd-menu-label">SWITCH WORKSPACE</span>
+              {workspaces.map(item => <button key={item.id} onClick={() => { setWorkspaceId(item.id); setProjectId(item.projects[0]?.id || ''); setWorkspaceMenu(false); setScreen('projects'); setAutoTestRepairEnabled(false); }}>{item.name}{item.id === workspace?.id ? <Check size={14}/> : null}</button>)}
+              <button onClick={() => { setNewWorkspace(true); setWorkspaceMenu(false); }}><Plus size={14}/> Create workspace</button>
+            </div>}
+          </div>
           <div className="cd-dashboard-context"><span>{workspace?.name || 'Personal workspace'}</span><ChevronRight size={14}/><b>{screen === 'home' ? 'Home' : screen === 'projects' ? 'Projects' : 'Settings'}</b></div>
           <div className="cd-dashboard-actions">
             <span className="cd-saved-indicator"><span/> Saved locally</span>
