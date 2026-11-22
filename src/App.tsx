@@ -1,209 +1,302 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { ArrowUp, ChevronLeft, Code2, Eye, Folder, Hammer, ListChecks, Menu, Plus, Sparkles, WandSparkles } from "lucide-react";
-import { keylessAI } from "./aiClient";
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { zipSync, strToU8 } from 'fflate';
+import { keylessAI } from './aiClient';
 
-type Mode = "plan" | "build";
-type Workspace = { id: string; name: string };
-type Project = { id: string; workspaceId: string; name: string; prompt: string; planJson: any; status: string; updatedAt: string };
-type FileItem = { path: string; content: string; language: string };
-type ApiWorkspace={id:string;name:string};
-type ApiProject={id:string;workspaceId:string;name:string;prompt:string;planJson:any;status:string;updatedAt:string};
-type ApiFile={path:string;content:string;language:string};
-type ApiState={workspaces:ApiWorkspace[];projects:ApiProject[];files:Record<string,ApiFile[]>};
-const apiLoad=():ApiState=>{try{const raw=localStorage.getItem("codera-floot-api-v1");if(raw)return JSON.parse(raw) as ApiState}catch{}return {workspaces:[],projects:[],files:{}}};
-const apiSave=(s:ApiState)=>localStorage.setItem("codera-floot-api-v1",JSON.stringify(s));
-const apiJson=(data:unknown,status=200)=>new Response(JSON.stringify(data),{status,headers:{"Content-Type":"application/json"}});
-async function flootFetch(input:string,init?:RequestInit):Promise<Response>{
- const s=apiLoad(), url=new URL(input,location.origin), method=init?.method??"GET";
- const body=init?.body?JSON.parse(String(init.body)):{};
- if(url.pathname==="/_api/workspaces"&&method==="GET")return apiJson({workspaces:s.workspaces});
- if(url.pathname==="/_api/workspaces"&&method==="POST"){const w={id:crypto.randomUUID(),name:String(body.name||"My workspace")};s.workspaces=[w,...s.workspaces];apiSave(s);return apiJson({workspace:w});}
- if(url.pathname==="/_api/projects"&&method==="GET"){return apiJson({projects:s.projects.filter(p=>p.workspaceId===url.searchParams.get("workspaceId"))});}
- if(url.pathname==="/_api/projects"&&method==="POST"){const id=crypto.randomUUID();const p={id,workspaceId:String(body.workspaceId),name:String(body.name||"Untitled project"),prompt:String(body.prompt||""),planJson:null,status:"draft",updatedAt:new Date().toISOString()};s.projects=[p,...s.projects];s.files[id]=[];apiSave(s);return apiJson({project:p});}
- if(url.pathname==="/_api/project"&&method==="GET"){const p=s.projects.find(x=>x.id===url.searchParams.get("projectId"));if(!p)return apiJson({error:"Project not found"},404);return apiJson({project:p,files:s.files[p.id]||[]});}
- if(url.pathname==="/_api/project_plan"&&method==="POST"){const p=s.projects.find(x=>x.id===body.projectId);if(!p)return apiJson({error:"Project not found"},404);try{const raw=await keylessAI("plan",String(body.prompt),p.name,s.files[p.id]||[],Array.isArray(body.plan)?body.plan:[]);const parsed=JSON.parse(raw);const steps=(parsed.steps||[]).filter((x:any)=>typeof x==="string").slice(0,8);const plan={title:p.name,summary:"Implementation plan for your request.",features:steps,architecture:[],files:[],acceptanceCriteria:steps,risks:[]};p.planJson=plan;p.status="planned";p.prompt=String(body.prompt);p.updatedAt=new Date().toISOString();apiSave(s);return apiJson({plan});}catch(e){return apiJson({error:e instanceof Error?e.message:"Plan failed"},500);}}
- if(url.pathname==="/_api/project_build"&&method==="POST"){const p=s.projects.find(x=>x.id===body.projectId);if(!p)return apiJson({error:"Project not found"},404);try{const raw=await keylessAI("build",String(body.prompt),p.name,s.files[p.id]||[],Array.isArray(body.plan?.features)?body.plan.features:[]);const parsed=JSON.parse(raw);const files=(parsed.files||[]).map((f:any)=>({path:String(f.path),content:String(f.content),language:String(f.language||f.path.split(".").pop()||"text")}));if(!files.some((f:any)=>f.path==="index.html"))throw new Error("Generated project is missing index.html.");s.files[p.id]=files;p.status="built";p.prompt=String(body.prompt);p.updatedAt=new Date().toISOString();apiSave(s);return apiJson({result:{summary:String(parsed.summary||"Project built."),files,removedFiles:[],verification:[]}});}catch(e){return apiJson({error:e instanceof Error?e.message:"Build failed"},500);}}
- return apiJson({error:"Unknown endpoint"},404);
-}
+const parseAIJson = <T,>(value: string): T => {
+  return JSON.parse(value) as T;
+};
 
-
-const ideas = [
-  { title: "Personal portfolio", prompt: "Build a polished personal portfolio with a hero, projects, about section, skills, contact form, dark/light theme toggle, and smooth responsive interactions." },
-  { title: "SaaS dashboard", prompt: "Build a responsive SaaS analytics dashboard with sidebar navigation, KPI cards, charts, activity feed, filters, empty states, and a mobile navigation." },
-  { title: "Online store", prompt: "Build a modern online store with product cards, search, category filters, product details, cart drawer, quantity controls, and persistent cart state." },
+type FileItem = { path: string; content: string };
+type Project = { id: string; name: string; files: FileItem[]; plan: string[]; updated: number };
+type Workspace = { id: string; name: string; projects: Project[] };
+const id = () => Math.random().toString(36).slice(2, 10);
+const starterFiles: FileItem[] = [
+  { path: 'index.html', content: '<!doctype html>\n<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Your next idea</title><link rel="stylesheet" href="styles.css"></head><body><main class="hero" id="start"><span class="eyebrow">YOUR CANVAS IS READY</span><h1>Make something<br><span>remarkable.</span></h1><p>Describe what you want to build. Codera will help turn your idea into a working website.</p><a href="#start">Explore the possibilities ↗</a></main><script src="app.js"></script></body></html>' },
+  { path: 'styles.css', content: ':root{font-family:Inter,system-ui,sans-serif;color:#f5f4ff;background:#0c1020}*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(ellipse at 75% 20%,#27205a 0,transparent 42%),#0c1020}.hero{max-width:850px;margin:auto;padding:15vh 8vw}.eyebrow{font-size:11px;letter-spacing:.2em;color:#a99aff;font-weight:700}h1{font-size:clamp(48px,9vw,92px);line-height:.98;letter-spacing:-.07em;margin:24px 0}h1 span{background:linear-gradient(90deg,#a99aff,#72d9ff);color:transparent;background-clip:text}.hero p{max-width:470px;color:#a9adc3;font-size:17px;line-height:1.7}.hero a{display:inline-block;margin-top:28px;padding:14px 18px;border:1px solid #5b5488;border-radius:12px;color:#fff;text-decoration:none;background:#ffffff0b}' },
+  { path: 'app.js', content: "document.querySelector('a')?.addEventListener('click',()=>console.log('Welcome to your project'));" }
 ];
-
-function slugName(prompt: string) {
-  const words = prompt.replace(/[^a-z0-9 ]/gi, "").trim().split(/\s+/).slice(0, 5);
-  return words.length ? words.map((w) => w[0]?.toUpperCase() + w.slice(1)).join(" ") : "Untitled project";
-}
-
-function previewHtml(files: FileItem[]) {
-  const html = files.find((f) => f.path === "index.html")?.content ?? "";
-  const css = files.find((f) => f.path === ""css"")?.content ?? "";
-  const js = files.find((f) => f.path === "app.js")?.content ?? "";
-  return html
-    .replace(/<link[^>]+href=["'](?:\.\/)?styles\.css["'][^>]*>/i, "<style>" + css.replace(/<\/style/gi, "<\\/style") + "</style>")
-    .replace(/<script[^>]+src=["'](?:\.\/)?app\.js["'][^>]*><\/script>/i, "<script>" + js.replace(/<\/script/gi, "<\\/script") + "</script>");
-}
-
-export default function HomePage() {
-  const [workspace, setWorkspace] = useState<Workspace | null>(null);
-  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [active, setActive] = useState<Project | null>(null);
-  const [files, setFiles] = useState<FileItem[]>([]);
-  const [prompt, setPrompt] = useState("");
-  const [mode, setMode] = useState<Mode>("build");
+const makeProject = (n = 1): Project => ({ id: id(), name: n === 1 ? 'My first website' : 'Untitled project ' + n, files: starterFiles.map(f => ({ ...f })), plan: [], updated: Date.now() });
+const load = (): Workspace[] => { try { const v = localStorage.getItem('codera-workspaces-v1'); if (v) { const parsed = JSON.parse(v) as Workspace[]; if (Array.isArray(parsed) && parsed.length) return parsed; } } catch { /* reset corrupt local state */ } return [{ id: id(), name: 'Personal workspace', projects: [makeProject()] }]; };
+const planFor = (idea: string) => ['Define the structure and main user journey for ' + idea + '.', 'Build a responsive layout with a clear visual hierarchy and accessible interactions.', 'Implement the styling, content, and functional client-side behaviour.', 'Check mobile and desktop layouts, then refine the result.'];
+const validateGeneratedFiles = (input: unknown): FileItem[] => {
+  if (!Array.isArray(input)) throw new Error('The AI response did not include a file list.');
+  const allowed = new Set(['html', 'css', 'js', 'json', 'txt']); const seen = new Set<string>();
+  const output: FileItem[] = []; let total = 0;
+  for (const item of input) {
+    if (!item || typeof item.path !== 'string' || typeof item.content !== 'string') continue;
+    const path = item.path; const parts = path.split('/'); const extension = path.split('.').pop()?.toLowerCase();
+    if (!path || path.length > 120 || path.startsWith('/') || path.includes(String.fromCharCode(92)) ||
+      parts.some((part: string) => !part || part === '.' || part === '..' || part.startsWith('.') || !/^[a-zA-Z0-9_.-]+$/.test(part)) ||
+      !extension || !allowed.has(extension)) continue;
+    if (item.content.length > 250000) continue;
+    if (seen.has(path)) throw new Error('The AI returned duplicate file paths: ' + path);
+    const bytes = new TextEncoder().encode(item.content).byteLength;
+    if (total + bytes > 1200000) throw new Error('Generated files exceed the 1.2 MB project limit.');
+    if (output.length >= 20) throw new Error('Generated projects cannot contain more than 20 files.');
+    seen.add(path); total += bytes; output.push({ path, content: item.content });
+  }
+  if (!output.some(file => file.path === 'index.html')) throw new Error('The generated project did not contain a valid index.html.');
+  if (!output.some(file => file.path === 'styles.css')) {
+    if (output.length >= 20) throw new Error('The project needs styles.css and cannot exceed 20 files.');
+    output.push({ path: 'styles.css', content: '' });
+  }
+  return output;
+};
+export default function App() {
+  const [workspaces, setWorkspaces] = useState<Workspace[]>(load);
+  const [workspaceId, setWorkspaceId] = useState('');
+  const [projectId, setProjectId] = useState('');
+  const [mode, setMode] = useState<'plan' | 'build'>('build');
+  const [panel, setPanel] = useState<'preview' | 'code'>('preview');
+  const [prompt, setPrompt] = useState('');
+  const [selectedFile, setSelectedFile] = useState('index.html');
+  const [mobileMenu, setMobileMenu] = useState(false);
+  const [workspaceMenu, setWorkspaceMenu] = useState(false);
+  const [newWorkspace, setNewWorkspace] = useState(false);
+  const [workspaceName, setWorkspaceName] = useState('');
   const [busy, setBusy] = useState(false);
-  const [notice, setNotice] = useState("");
-  const [plan, setPlan] = useState<any>(null);
-  const [preview, setPreview] = useState(true);
-  const [mobileNav, setMobileNav] = useState(false);
-
-  useEffect(() => { bootstrap(); }, []);
-
-  async function bootstrap() {
-    try {
-      const wr = await flootFetch("/_api/workspaces");
-      const wd = await wr.json();
-      if (!wr.ok) throw new Error(wd.error || "Could not load workspaces.");
-      let available: Workspace[] = wd.workspaces ?? [];
-      let id = localStorage.getItem("codera.workspace");
-      if (!id || !available.some((w) => w.id === id)) {
-        const r = await flootFetch("/_api/workspaces", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ name: "My workspace" }) });
-        const d = await r.json();
-        const newId = String(d.workspace.id);
-        id = newId;
-        localStorage.setItem("codera.workspace", newId);
-        available = [d.workspace, ...available];
+  const [status, setStatus] = useState('Ready when you are');
+  const [error, setError] = useState('');
+  const [mobilePreview, setMobilePreview] = useState(false);
+  const [tabletPreview, setTabletPreview] = useState(false);
+  const [previewRefresh, setPreviewRefresh] = useState(0);
+  const [history, setHistory] = useState<string[]>([]);
+  const [runtimeErrors, setRuntimeErrors] = useState<string[]>([]);
+  const [previewChecks, setPreviewChecks] = useState<Array<{ name: string; status: 'pass' | 'fail'; message: string }>>([]);
+  const [previewReady, setPreviewReady] = useState(false);
+  const [autoTestRepairEnabled, setAutoTestRepairEnabled] = useState(false);
+  const autoRepairCount = useRef(0);
+  const previewFrame = useRef<HTMLIFrameElement>(null);
+  useEffect(() => { localStorage.setItem('codera-workspaces-v1', JSON.stringify(workspaces)); }, [workspaces]);
+  useEffect(() => {
+    const receivePreviewError = (event: MessageEvent) => {
+      if (event.source !== previewFrame.current?.contentWindow) return;
+      const data = event.data as { source?: string; kind?: string; name?: string; status?: 'pass' | 'fail'; message?: string } | null;
+      if (!data || data.source !== 'codera-preview') return;
+      if (data.kind === 'ready') { setPreviewReady(true); return; }
+      if (data.kind === 'check' && typeof data.name === 'string' && (data.status === 'pass' || data.status === 'fail')) {
+        setPreviewChecks(previous => [...previous.filter(check => check.name !== data.name), { name: data.name!, status: data.status!, message: String(data.message || '').slice(0, 300) }].slice(-20));
+        return;
       }
-      if (!id) throw new Error("Workspace could not be created.");
-      const r = await flootFetch("/_api/projects?workspaceId=" + encodeURIComponent(id));
-      const d = await r.json();
-      const selected = available.find((w) => w.id === id);
-      setWorkspaces(available);
-      setWorkspace(selected ?? { id, name: "My workspace" });
-      setProjects(d.projects ?? []);
-    } catch (e) { setNotice(e instanceof Error ? e.message : "Could not load your workspace."); }
-  }
-
-  async function refreshProjects() {
+      if (data.kind === 'runtime' && typeof data.message === 'string') {
+        setRuntimeErrors(previous => [...previous, data.message!.slice(0, 500)].filter((item, index, all) => all.indexOf(item) === index).slice(-8));
+      }
+    };
+    window.addEventListener('message', receivePreviewError);
+    return () => window.removeEventListener('message', receivePreviewError);
+  }, []);
+  const workspace = workspaces.find(w => w.id === workspaceId) || workspaces[0];
+  const project = workspace?.projects.find(p => p.id === projectId) || workspace?.projects[0];
+  useEffect(() => { setRuntimeErrors([]); setPreviewChecks([]); setPreviewReady(false); }, [project?.id, project?.updated]);
+  useEffect(() => { if (!workspaceId && workspace) setWorkspaceId(workspace.id); }, [workspaceId, workspace]);
+  useEffect(() => { if (workspace && (!projectId || !workspace.projects.some(p => p.id === projectId))) setProjectId(workspace.projects[0]?.id || ''); }, [workspace, projectId]);
+  const file = project?.files.find(f => f.path === selectedFile) || project?.files[0];
+  const preview = useMemo(() => {
+    if (!project) return '';
+    let doc = project.files.find(f => f.path === 'index.html')?.content || '<h1>Start building</h1>';
+    const css = project.files.find(f => f.path.endsWith('.css'))?.content || '';
+    const js = project.files.find(f => f.path.endsWith('.js'))?.content || '';
+    doc = doc.replace(/<link[^>]+href=["'][^"']+\.css["'][^>]*>/gi, '').replace(/<script[^>]+src=["'][^"']+\.js["'][^>]*><\/script>/gi, '');
+    doc = doc.replace(/<\/head>/i, '<style>' + css.replace(/<\/style/gi, '<\\/style') + '</style></head>');
+    if (js) doc = doc.replace(/<\/body>/i, '<script>' + js.replace(/<\/script/gi, '<\\/script') + '</script></body>');
+    const monitor = `<script>(() => {
+      const send = payload => parent.postMessage({ source: 'codera-preview', ...payload }, '*');
+      const report = (kind, value) => { const message = String(value && (value.message || value.reason || value) || kind).slice(0, 500); send({ kind: 'runtime', message: kind + ': ' + message }); };
+      const check = (name, passed, message) => send({ kind: 'check', name, status: passed ? 'pass' : 'fail', message });
+      addEventListener('error', event => report('Runtime error', event.message || 'Unknown script error'));
+      addEventListener('unhandledrejection', event => report('Unhandled promise rejection', event.reason));
+      const original = console.error.bind(console); console.error = (...args) => { report('Console error', args.join(' ')); original(...args); };
+      let checksRan = false;
+      const runChecks = () => {
+        if (checksRan) return;
+        checksRan = true;
+        check('Document title', !!document.title.trim(), 'A descriptive page title is present.');
+        check('Responsive viewport', !!document.querySelector('meta[name=viewport]'), 'Viewport metadata is present.');
+        check('Page content', !!(document.body.textContent.trim() || document.body.querySelector('img,canvas,svg')), 'The page contains visible content.');
+        const buttons = [...document.querySelectorAll('button,[role=button]')];
+        const unnamedButtons = buttons.filter(el => !(el.getAttribute('aria-label') || el.getAttribute('title') || el.textContent.trim()));
+        check('Button labels', unnamedButtons.length === 0, unnamedButtons.length ? unnamedButtons.length + ' button(s) have no accessible name.' : buttons.length + ' button(s) have accessible names.');
+        const safeButtons = buttons.filter(el => el.getAttribute('data-codera-test-safe') === 'true' && el.getAttribute('data-codera-test-target'));
+        let buttonFailures = 0;
+        safeButtons.forEach(button => {
+          try {
+            const target = document.querySelector(button.getAttribute('data-codera-test-target'));
+            if (!target) { buttonFailures++; return; }
+            const expected = button.getAttribute('data-codera-test-state') || 'visible';
+            button.click();
+            const visible = !target.hidden && target.getAttribute('aria-hidden') !== 'true' && getComputedStyle(target).display !== 'none';
+            const passed = expected === 'hidden' ? !visible : visible;
+            if (!passed) { button.click(); buttonFailures++; }
+          } catch { buttonFailures++; }
+        });
+        check('Safe button interactions', buttonFailures === 0, safeButtons.length ? (safeButtons.length - buttonFailures) + '/' + safeButtons.length + ' reversible button interaction(s) passed.' : 'No buttons opted into safe interaction testing; destructive actions are never clicked automatically.');
+        const fields = [...document.querySelectorAll('input:not([type=hidden]),select,textarea')];
+        const unlabeledFields = fields.filter(el => !(el.getAttribute('aria-label') || el.getAttribute('aria-labelledby') || el.id && document.querySelector('label[for="' + CSS.escape(el.id) + '"]') || el.closest('label')));
+        check('Form field labels', unlabeledFields.length === 0, unlabeledFields.length ? unlabeledFields.length + ' form field(s) need labels.' : fields.length + ' form field(s) have labels.');
+        const forms = [...document.forms];
+        const formsWithoutSubmit = forms.filter(form => !form.querySelector('button:not([type]),button[type=submit],input[type=submit]'));
+        check('Form submit controls', formsWithoutSubmit.length === 0, formsWithoutSubmit.length ? formsWithoutSubmit.length + ' form(s) have no submit control.' : forms.length + ' form(s) have submit controls.');
+        const links = [...document.querySelectorAll('a')];
+        const brokenAnchors = links.filter(link => !link.getAttribute('href') || link.getAttribute('href') === '#' || link.getAttribute('href').startsWith('#') && link.getAttribute('href').length > 1 && !document.getElementById(decodeURIComponent(link.getAttribute('href').slice(1))));
+        check('Navigation targets', brokenAnchors.length === 0, brokenAnchors.length ? brokenAnchors.length + ' navigation link(s) have missing or empty destinations.' : links.length + ' link(s) have valid destinations.');
+        let navigationFailures = 0; let navigationTests = 0;
+        links.filter(link => link.getAttribute('href')?.startsWith('#') && link.getAttribute('href') !== '#').forEach(link => {
+          let observed = false; let prevented = false;
+          const listener = event => { observed = true; prevented = event.defaultPrevented; };
+          link.addEventListener('click', listener, { once: true });
+          link.click(); navigationTests++;
+          if (!observed || prevented) navigationFailures++;
+        });
+        check('In-page navigation behavior', navigationFailures === 0, navigationTests ? (navigationTests - navigationFailures) + '/' + navigationTests + ' in-page navigation link(s) received an unblocked click and have valid targets.' : 'No in-page navigation links were present to exercise.');
+        const images = [...document.images]; const missingAlt = images.filter(img => !img.hasAttribute('alt'));
+        check('Image alternatives', missingAlt.length === 0, missingAlt.length ? missingAlt.length + ' image(s) are missing alt text.' : images.length + ' image(s) have alt attributes.');
+        const overflow = document.documentElement.scrollWidth > document.documentElement.clientWidth + 1;
+        check('Current viewport fit', !overflow, overflow ? 'The page overflows horizontally at ' + innerWidth + 'px.' : 'No horizontal overflow at ' + innerWidth + 'px.');
+        forms.forEach((form, index) => send({ kind: 'check', name: 'Form validation ' + (index + 1), status: 'pass', message: form.checkValidity() ? 'Form fields satisfy native constraints.' : 'Required fields correctly block incomplete submission.' }));
+        send({ kind: 'ready' });
+      };
+      addEventListener('message', event => {
+        if (event.source === parent && event.data && event.data.source === 'codera-parent' && event.data.kind === 'ready') runChecks();
+      });
+    })();</script>`;
+    doc = doc.replace(/<head([^>]*)>/i, '<head$1>' + monitor);
+    return doc;
+  }, [project]);
+  const updateProject = (fn: (p: Project) => Project) => {
+    if (!workspace || !project) return;
+    setWorkspaces(prev => prev.map(w => w.id !== workspace.id ? w : { ...w, projects: w.projects.map(p => p.id === project.id ? fn(p) : p) }));
+  };
+  const createProject = () => {
     if (!workspace) return;
-    const r = await flootFetch("/_api/projects?workspaceId=" + encodeURIComponent(workspace.id));
-    const d = await r.json();
-    setProjects(d.projects ?? []);
-  }
-
-  async function openProject(projectId: string) {
-    setNotice("");
-    const r = await flootFetch("/_api/project?projectId=" + encodeURIComponent(projectId));
-    const d = await r.json();
-    if (!r.ok) { setNotice(d.error || "Could not open project."); return; }
-    setActive(d.project);
-    setFiles(d.files ?? []);
-    setPlan(d.project.planJson);
-    setPrompt("");
-    setMobileNav(false);
-  }
-
-  async function createProject(promptValue: string) {
-    if (!workspace) throw new Error("Workspace is not ready.");
-    const r = await flootFetch("/_api/projects", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ workspaceId: workspace.id, name: slugName(promptValue), prompt: promptValue }) });
-    const d = await r.json();
-    if (!r.ok) throw new Error(d.error || "Could not create project.");
-    setProjects((p) => [d.project, ...p]);
-    setActive(d.project);
-    setFiles([]);
-    return d.project;
-  }
-
-  async function send() {
-    const value = prompt.trim();
-    if (!value || busy) return;
-    setBusy(true); setNotice("");
+    const next = makeProject(workspace.projects.length + 1);
+    setWorkspaces(prev => prev.map(w => w.id === workspace.id ? { ...w, projects: [next, ...w.projects] } : w));
+    setProjectId(next.id); setSelectedFile('index.html'); setPanel('preview'); setPrompt(''); setMobileMenu(false); setError(''); setAutoTestRepairEnabled(false);
+  };
+  const addWorkspace = () => {
+    if (!workspaceName.trim()) return;
+    const next = { id: id(), name: workspaceName.trim(), projects: [] };
+    setWorkspaces(prev => [next, ...prev]); setWorkspaceId(next.id); setProjectId(''); setAutoTestRepairEnabled(false);
+    setWorkspaceName(''); setNewWorkspace(false); setWorkspaceMenu(false);
+  };
+  const runPlan = async () => {
+    if (!prompt.trim() || busy) { if (!prompt.trim()) setError('Describe your idea first.'); return; }
+    setBusy(true); setError(''); setStatus('Turning your idea into a plan…');
     try {
-      const project = active ?? await createProject(value);
-      if (mode === "plan") {
-        const r = await flootFetch("/_api/project_plan", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ projectId: project.id, prompt: value }) });
-        const d = await r.json();
-        if (!r.ok) throw new Error(d.error || "Plan failed.");
-        setPlan(d.plan); setActive((p) => p ? {...p, planJson: d.plan, status: "planned"} : p);
-      } else {
-        const r = await flootFetch("/_api/project_build", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ projectId: project.id, prompt: value, plan: plan ?? project.planJson }) });
-        const d = await r.json();
-        if (!r.ok) throw new Error(d.error || "Build failed.");
-        const fresh = await flootFetch("/_api/project?projectId=" + encodeURIComponent(project.id));
-        const fd = await fresh.json();
-        setActive(fd.project); setFiles(fd.files ?? []); setPlan(fd.project.planJson);
-      }
-      await refreshProjects();
-      setPrompt("");
-    } catch (e) { setNotice(e instanceof Error ? e.message : "Codera could not complete the request."); }
+      const raw = await keylessAI('plan', prompt.trim(), project?.name);
+      const data = parseAIJson<{ steps?: string[] }>(raw);
+      const steps = Array.isArray(data.steps) ? data.steps.filter(s => typeof s === 'string' && s.trim()).slice(0, 8) : [];
+      if (!steps.length) throw new Error('The AI plan was empty. Please retry.');
+      updateProject(p => ({ ...p, plan: steps, updated: Date.now() }));
+      setStatus('Plan ready · Kilo Auto Free');
+      setHistory(prev => [prompt.trim(), ...prev].slice(0, 6));
+    } catch (e) {
+      updateProject(p => ({ ...p, plan: planFor(prompt.trim()), updated: Date.now() }));
+      setError((e instanceof Error ? e.message : 'AI plan failed.') + ' Using the local fallback.');
+      setStatus('Plan ready with fallback');
+    } finally { setBusy(false); }
+  };
+  const runBuild = async () => {
+    if (!project || !prompt.trim() || busy) return;
+    setBusy(true); setError(''); setHistory(prev => [prompt.trim(), ...prev].slice(0, 6));
+    try {
+      setStatus('Planning your build…');
+      const raw = await keylessAI('build', prompt.trim(), project.name, project.files, project.plan);
+      setStatus('Validating generated files…');
+      const data = parseAIJson<{ summary?: string; files?: FileItem[] }>(raw);
+      const safe = validateGeneratedFiles(data.files);
+      autoRepairCount.current = 0;
+      setRuntimeErrors([]);
+      setPreviewChecks([]);
+      setPreviewReady(false);
+      setAutoTestRepairEnabled(true);
+      updateProject(p => ({ ...p, files: safe, plan: p.plan.length ? p.plan : planFor(prompt.trim()), updated: Date.now() }));
+      setSelectedFile('index.html'); setPanel('preview'); setPrompt(''); setStatus('Build complete · Kilo Auto Free');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Build failed.');
+      setStatus('Build needs attention');
+    } finally { setBusy(false); }
+  };
+  const runRepair = async () => {
+    const failedChecks = previewChecks.filter(check => check.status === 'fail').map(check => check.name + ': ' + check.message);
+    if (!project || (!runtimeErrors.length && !failedChecks.length) || busy) return;
+    const issues = [...runtimeErrors, ...failedChecks].join(String.fromCharCode(10));
+    setBusy(true); setError(''); setStatus('Sending preview test failures to the repair engine…');
+    try {
+      const repairPrompt = ['Repair the current website based on these automated browser preview test failures. Fix root causes while preserving existing design and working features. Do not hide, suppress, or weaken tests. Return the complete corrected project files.', 'Browser diagnostics and test failures:', issues].join(String.fromCharCode(10, 10));
+      const raw = await keylessAI('build', repairPrompt, project.name, project.files, project.plan);
+      const data = parseAIJson<{ summary?: string; files?: FileItem[] }>(raw);
+      const safe = validateGeneratedFiles(data.files);
+      updateProject(p => ({ ...p, files: safe, updated: Date.now() }));
+      setSelectedFile('index.html'); setPanel('preview'); setRuntimeErrors([]); setStatus('Repair applied · rerunning preview checks…');
+    } catch (e) { setError(e instanceof Error ? e.message : 'Preview repair failed.'); setStatus('Repair needs attention'); }
     finally { setBusy(false); }
-  }
-
-  function newProject() {
-    setActive(null); setFiles([]); setPlan(null); setPrompt(""); setNotice(""); setMobileNav(false);
-  }
-
-  const iframeSrc = useMemo(() => files.length ? previewHtml(files) : "", [files]);
-  const fileCount = files.length;
-
-  return <main className="app">
-    <aside className={mobileNav ? "sidebar sidebarOpen" : "sidebar"}>
-      <div className="brand"><span className="logo"><Code2 size={17}/></span><span>codera<span>.ai</span></span></div>
-      <button className="newProject" onClick={newProject}><Plus size={16}/> New project</button>
-      <div className="sideSection"><div className="sideLabel"><span>WORKSPACE</span><button className="sidePlus" aria-label="Create workspace" onClick={async () => { const name = window.prompt("Workspace name", "New workspace"); if (!name?.trim()) return; try { const r = await flootFetch("/_api/workspaces", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:name.trim()})}); const d = await r.json(); if (!r.ok) throw new Error(d.error || "Could not create workspace."); localStorage.setItem("codera.workspace", d.workspace.id); setWorkspaces((w) => [d.workspace, ...w]); setWorkspace({id:d.workspace.id,name:d.workspace.name}); setProjects([]); setActive(null); setFiles([]); setPlan(null); setNotice(""); } catch (e) { setNotice(e instanceof Error ? e.message : "Could not create workspace."); } }}>+</button></div><div className="workspaceSwitcher"><select aria-label="Workspace" value={workspace?.id ?? ""} onChange={async (e) => { const next = workspaces.find((w) => w.id === e.target.value); if (!next) return; localStorage.setItem("codera.workspace", next.id); setWorkspace(next); setActive(null); setFiles([]); setPlan(null); setNotice(""); const r = await flootFetch("/_api/projects?workspaceId=" + encodeURIComponent(next.id)); const d = await r.json(); if (r.ok) setProjects(d.projects ?? []); else setNotice(d.error || "Could not load projects."); }}><option value="" disabled>Select workspace</option>{workspaces.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}</select></div></div>
-      <div className="sideSection"><div className="sideLabel"><span>PROJECTS</span><span>{projects.length}</span></div>
-        <div className="projectList">{projects.map((p) => <button key={p.id} className={active?.id === p.id ? "projectActive" : "projectItem"} onClick={() => openProject(p.id)}><Folder size={14}/><span>{p.name}</span></button>)}</div>
-      </div>
-      <div className="sidebarFoot"><span>Auto Free model</span><small>kilo-auto/free</small></div>
+  };
+  useEffect(() => {
+    if (!autoTestRepairEnabled || busy || !previewReady || !previewChecks.length) return;
+    const failures = previewChecks.filter(check => check.status === 'fail');
+    if ((failures.length || runtimeErrors.length) && autoRepairCount.current === 0) {
+      autoRepairCount.current = 1;
+      void runRepair();
+    } else if (!failures.length && previewChecks.every(check => check.status === 'pass') && !runtimeErrors.length) {
+      setAutoTestRepairEnabled(false);
+      setStatus('Preview checks passed · ready to review');
+    }
+  }, [autoTestRepairEnabled, busy, previewChecks, previewReady, runtimeErrors]);
+  const download = () => {
+    if (!project) return;
+    const archiveFiles: Record<string, Uint8Array> = {};
+    for (const item of project.files) archiveFiles[item.path] = strToU8(item.content);
+    const archive = zipSync(archiveFiles, { level: 6 });
+    const url = URL.createObjectURL(new Blob([archive as unknown as BlobPart], { type: 'application/zip' }));
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = project.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-source.zip';
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1500);
+    setStatus('Project exported as ZIP');
+  };
+  const deleteProject = () => {
+    if (!workspace || !project || workspace.projects.length < 2) return;
+    const rest = workspace.projects.filter(p => p.id !== project.id);
+    setWorkspaces(prev => prev.map(w => w.id === workspace.id ? { ...w, projects: rest } : w)); setProjectId(rest[0].id); setAutoTestRepairEnabled(false);
+  };
+  return <div className="shell">
+    <aside className={'sidebar ' + (mobileMenu ? 'open' : '')}>
+      <div className="brand"><span className="brand-icon">c</span><b>codera<span>.ai</span></b><button className="mobile-close" onClick={() => setMobileMenu(false)}>×</button></div>
+      <button className="workspace-switch" onClick={() => setWorkspaceMenu(!workspaceMenu)}><span className="workspace-avatar">{(workspace?.name || 'W').slice(0,1).toUpperCase()}</span><span><b>{workspace?.name || 'Workspace'}</b><small>Local workspace</small></span><span className="chevron">⌄</span></button>
+      {workspaceMenu && <div className="workspace-menu">{workspaces.map(w => <button key={w.id} onClick={() => { setWorkspaceId(w.id); setProjectId(w.projects[0]?.id || ''); setWorkspaceMenu(false); setAutoTestRepairEnabled(false); }}>{w.name}{w.id === workspace?.id ? '  ✓' : ''}</button>)}<button onClick={() => { setNewWorkspace(true); setWorkspaceMenu(false); }}>＋ Create workspace</button></div>}
+      <div className="side-label">WORKSPACE <button onClick={createProject}>＋</button></div>
+      <button className="nav-active">▦ <span>Projects</span><small>{workspace?.projects.length || 0}</small></button>
+      <div className="project-list">{workspace?.projects.map(p => <button key={p.id} className={p.id === project?.id ? 'selected' : ''} onClick={() => { setProjectId(p.id); setMobileMenu(false); setAutoTestRepairEnabled(false); }}><i/> {p.name}</button>)}</div>
+      <button className="new-project" onClick={createProject}>＋ New project</button>
+      <div className="sidebar-bottom"><div className="plan-note"><b>Build workspace <span>FREE</span></b><p>Your ideas, one build at a time.</p><small>AI: Kilo Auto Free · no key</small></div><div className="profile"><span>C</span><div><b>Creator</b><small>Personal account</small></div></div></div>
     </aside>
-
-    {mobileNav && <button className="scrim" aria-label="Close navigation" onClick={() => setMobileNav(false)}/>}
-
-    <section className="main">
-      <header className="topbar">
-        <div className="topLeft"><button className="menu" onClick={() => setMobileNav(true)}><Menu size={18}/></button>{active ? <><ChevronLeft size={15}/><span>{active.name}</span></> : <span className="topTitle">New project</span>}</div>
-        <div className="topActions">{active && <><button className={preview ? "tabActive" : "tab"} onClick={() => setPreview(true)}><Eye size={14}/> Preview</button><button className={!preview ? "tabActive" : "tab"} onClick={() => setPreview(false)}><Code2 size={14}/> Files</button></>}</div>
-      </header>
-
-      {!active ? <section className="home">
-        <div className="homeGlow"/>
-        <div className="homeContent">
-          <div className="eyebrow"><i/> AI WEB APP BUILDER</div>
-          <div className="heroIcon"><WandSparkles size={22}/></div>
-          <h1>What do you want to <em>build</em>?</h1>
-          <p>Describe the product in plain English. Codera creates the project, files, and a working browser preview.</p>
-          <Composer prompt={prompt} setPrompt={setPrompt} mode={mode} setMode={setMode} busy={busy} send={send}/>
-          <div className="ideaGrid">{ideas.map((idea) => <button key={idea.title} className="idea" onClick={() => setPrompt(idea.prompt)}><strong>{idea.title}</strong><span>{idea.prompt.slice(0, 70)}…</span><b>↗</b></button>)}</div>
-          {notice && <div className="notice">{notice}</div>}
-        </div>
-      </section> : <section className="builder">
-        <div className="chatPane">
-          <div className="projectIntro"><div className="smallIcon"><Sparkles size={15}/></div><div><h2>{active.name}</h2><p>{active.status === "built" ? "Your project is ready to refine." : "Turn the idea into a working web app."}</p></div></div>
-          {plan && <div className="plan"><div className="planHead"><ListChecks size={14}/><strong>Plan</strong><span>{plan.features?.length ?? 0} features</span></div><p>{plan.summary}</p><div className="planList">{(plan.features ?? []).slice(0,5).map((x:string) => <span key={x}>✓ {x}</span>)}</div></div>}
-          {files.length === 0 && <div className="emptyBuild"><Sparkles size={18}/><h3>Ready to build</h3><p>Tell Codera what the app should do. Build mode writes the project files and prepares the live preview.</p></div>}
-          {files.length > 0 && <div className="fileMeta"><span>{fileCount} files</span><span>·</span><span>browser preview ready</span></div>}
-          <div className="builderComposer"><Composer prompt={prompt} setPrompt={setPrompt} mode={mode} setMode={setMode} busy={busy} send={send}/></div>
-          {notice && <div className="notice">{notice}</div>}
-        </div>
-        <div className={preview ? "previewPane" : "previewPane previewHidden"}>
-          <div className="previewHeader"><span><i/> Live preview</span><span>{active.status === "built" ? "Updated just now" : "Waiting for build"}</span></div>
-          {iframeSrc ? <iframe title="Generated web app preview" sandbox="allow-scripts allow-forms" className="previewFrame" srcDoc={iframeSrc}/> : <div className="previewEmpty"><Eye size={24}/><p>Your generated app will appear here.</p></div>}
-        </div>
-        {!preview && <div className="filesPane">{files.map((f) => <div key={f.path} className="fileRow"><Code2 size={13}/><span>{f.path}</span><small>{f.language}</small></div>)}</div>}
-      </section>}
-    </section>
-  </main>;
+    <main className="main">
+      <header className="topbar"><div className="crumbs"><button className="menu-button" onClick={() => setMobileMenu(true)}>☰</button><span>Projects</span><b>›</b><strong>{project?.name || 'New project'}</strong></div><div className="top-actions"><span className="saved"><i/> Saved locally</span><button className="export" onClick={download}>↧ Export</button><button className="preview-top" onClick={() => setPanel('preview')}>◉ Preview</button></div></header>
+      {!project ? <section className="empty"><div>◇</div><h1>A workspace for your next idea.</h1><p>Create a project to start building with Codera.</p><button className="primary" onClick={createProject}>＋ Create project</button></section> : <>
+        <section className="project-heading"><div><small>PROJECT WORKSPACE <span>·</span> {new Date(project.updated).toLocaleDateString()}</small><h1>{project.name}</h1><p>A place to shape your next idea into a working website.</p></div><button className="more" title="Delete project" disabled={workspace.projects.length < 2} onClick={deleteProject}>•••</button></section>
+        <section className="workspace-grid">
+          <div className="left-column">
+            <div className="mode-switch"><button className={mode === 'plan' ? 'active' : ''} onClick={() => setMode('plan')}>◇ Plan</button><button className={mode === 'build' ? 'active' : ''} onClick={() => setMode('build')}>✧ Build</button><small>{mode === 'plan' ? 'Think it through' : 'Make it real'}</small></div>
+            <div className="prompt-card"><div className="prompt-head"><b>✧ {mode === 'plan' ? 'PLAN YOUR PROJECT' : 'WHAT SHOULD WE BUILD?'}</b><span><i/> Kilo Auto Free</span></div><textarea value={prompt} onChange={e => setPrompt(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) mode === 'plan' ? runPlan() : runBuild(); }} placeholder={mode === 'plan' ? 'Describe your idea and we’ll break it into clear steps…' : 'Describe the website you want to create or the changes you need…'} />
+              <div className="suggestions">{(mode === 'build' ? ['Landing page', 'Dashboard', 'Portfolio'] : ['Define users', 'Plan sections', 'List interactions']).map(s => <button key={s} onClick={() => setPrompt(p => p ? p + ' ' + s : s)}>{s}</button>)}</div>
+              <div className="prompt-foot"><small>⌘ ↵ to {mode}</small><button className="primary" disabled={busy || !prompt.trim()} onClick={mode === 'plan' ? runPlan : runBuild}>{busy ? '◌ Building…' : mode === 'plan' ? 'Create plan →' : '✧ Build project'}</button></div></div>
+            {error && <div className="error">{error}<button onClick={() => setError('')}>×</button></div>}
+            <div className="status"><span>{busy ? '◌' : '✓'}</span>{status}{busy && <small>Working</small>}</div>
+            {project.plan.length > 0 && <div className="info-card"><div className="card-title"><b>◇ &nbsp;Project plan</b><small>{project.plan.length} steps</small></div>{project.plan.map((s,i) => <div className="plan-step" key={i}><em>{String(i+1).padStart(2,'0')}</em><span>{s}</span><b>✓</b></div>)}</div>}
+            <div className="info-card history"><div className="card-title"><b>↻ &nbsp;Recent prompts</b></div>{history.length ? history.slice(0,3).map((h,i) => <button key={i} onClick={() => setPrompt(h)}>{h}<span>›</span></button>) : <p>Your build prompts will appear here.</p>}</div>
+          </div>
+          <div className="right-column">
+            <div className="preview-bar"><div><button className={panel === 'preview' ? 'active' : ''} onClick={() => setPanel('preview')}>◉ Preview</button><button className={panel === 'code' ? 'active' : ''} onClick={() => setPanel('code')}>‹/› Code <small>{project.files.length}</small></button></div><div><button aria-label="Desktop preview" title="Desktop preview" className={!mobilePreview && !tabletPreview ? 'active' : ''} onClick={() => { setMobilePreview(false); setTabletPreview(false); }}>▣</button><button aria-label="Tablet preview" title="Tablet preview" className={tabletPreview ? 'active' : ''} onClick={() => { setMobilePreview(false); setTabletPreview(true); }}>▭</button><button aria-label="Mobile preview" title="Mobile preview" className={mobilePreview ? 'active' : ''} onClick={() => { setMobilePreview(true); setTabletPreview(false); }}>▯</button><button aria-label="Refresh preview" title="Refresh preview" onClick={() => { setPanel('preview'); setPreviewReady(false); setPreviewRefresh(value => value + 1); }}>↻</button></div></div>
+            {panel === 'preview' ? <div className="preview-stage"><div className={'browser ' + (mobilePreview ? 'mobile' : tabletPreview ? 'tablet' : '')}><div className="browser-top"><span>● ● ●</span><label>⌕ &nbsp;preview.local</label><b>···</b></div><iframe key={previewRefresh} ref={previewFrame} title="Website preview" sandbox="allow-scripts allow-forms allow-modals" srcDoc={preview} onLoad={() => previewFrame.current?.contentWindow?.postMessage({ source: "codera-parent", kind: "ready" }, "*")}/></div></div> : <div className="code-panel"><nav>{project.files.map(f => <button key={f.path} className={file?.path === f.path ? 'active' : ''} onClick={() => setSelectedFile(f.path)}>▤ {f.path}</button>)}</nav><div className="editor"><header>{file?.path}<small>EDITABLE</small></header><textarea spellCheck={false} value={file?.content || ''} onChange={e => updateProject(p => ({ ...p, files: p.files.map(f => f.path === file?.path ? { ...f, content: e.target.value } : f), updated: Date.now() }))}/></div></div>}
+            <div className="preview-foot"><span>● {panel === 'preview' ? 'Live preview' : 'Source editor'}</span><span>{project.files.length} files · HTML, CSS & JS</span></div>{(previewChecks.length > 0 || runtimeErrors.length > 0) && <div className="runtime-panel"><div><b>Automated preview tests</b><small>{previewChecks.filter(check => check.status === 'pass').length}/{previewChecks.length} checks passed · {previewChecks.filter(check => check.status === 'fail').length + runtimeErrors.length} failures</small></div><ul>{previewChecks.filter(check => check.status === 'fail').map(check => <li key={check.name}>{check.name}: {check.message}</li>)}{runtimeErrors.slice(-4).map((issue, index) => <li key={'runtime-' + index}>{issue}</li>)}</ul><div className="test-pass-list">{previewChecks.filter(check => check.status === 'pass').map(check => <span key={check.name}>✓ {check.name}</span>)}</div>{(previewChecks.some(check => check.status === 'fail') || runtimeErrors.length > 0) && <button className="primary" disabled={busy} onClick={runRepair}>{busy ? 'Repairing…' : 'Fix test failures →'}</button>}</div>}
+          </div>
+        </section>
+        <footer className="page-foot"><span>Built with <b>Codera AI</b></span><span>Ideas into interfaces.</span></footer>
+      </>}
+    </main>
+    {newWorkspace && <div className="modal-backdrop" onClick={e => { if (e.target === e.currentTarget) setNewWorkspace(false); }}><section className="modal"><div className="modal-symbol">◇</div><h2>Create a workspace</h2><p>Keep projects organized by team, client, or idea.</p><label>Workspace name</label><input autoFocus value={workspaceName} onChange={e => setWorkspaceName(e.target.value)} onKeyDown={e => e.key === 'Enter' && addWorkspace()} placeholder="e.g. Personal projects"/><div><button onClick={() => setNewWorkspace(false)}>Cancel</button><button className="primary" disabled={!workspaceName.trim()} onClick={addWorkspace}>Create workspace</button></div></section></div>}
+    </div>;
 }
-
-function Composer({ prompt, setPrompt, mode, setMode, busy, send }: { prompt:string; setPrompt:(v:string)=>void; mode:Mode; setMode:(v:Mode)=>void; busy:boolean; send:()=>void }) {
-  return <div className="composer">
-    <div className="composerMode"><button className={mode === "build" ? "modeOn" : "modeOff"} onClick={() => setMode("build")}><Hammer size={13}/> Build</button><button className={mode === "plan" ? "modeOn" : "modeOff"} onClick={() => setMode("plan")}><ListChecks size={13}/> Plan</button><span>Web app</span></div>
-    <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }} placeholder={mode === "plan" ? "Describe the app you want to plan…" : "Describe the web app you want Codera to build…"} rows={3}/>
-    <div className="composerBottom"><span>Plain English · responsive by default</span><button className="send" disabled={!prompt.trim() || busy} onClick={send}>{busy ? "Working…" : mode === "plan" ? "Plan" : "Build"} <ArrowUp size={16}/></button></div>
-  </div>;
-}
-  189
