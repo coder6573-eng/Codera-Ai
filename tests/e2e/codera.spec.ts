@@ -121,6 +121,7 @@ test('Floot-imported local workspaces and files are migrated without losing proj
   });
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Imported website' })).toBeVisible();
+  await page.getByRole('button', { name: 'Open project Imported website' }).click();
   const source = await page.locator('iframe[title="Website preview"]').evaluate(el => (el as HTMLIFrameElement).srcdoc);
   expect(source).toContain('Floot migration preserved');
   expect(source).toContain('Migrated site');
