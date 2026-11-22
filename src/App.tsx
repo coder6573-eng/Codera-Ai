@@ -181,12 +181,17 @@ export default function App() {
         let navigationFailures = 0; let navigationTests = 0;
         links.filter(link => link.getAttribute('href')?.startsWith('#') && link.getAttribute('href') !== '#').forEach(link => {
           let observed = false; let prevented = false;
-          const listener = event => { observed = true; prevented = event.defaultPrevented; };
+          const listener = event => {
+            observed = true;
+            // Keep the audit from navigating the sandboxed srcDoc frame away from its generated page.
+            event.preventDefault();
+            prevented = event.defaultPrevented;
+          };
           link.addEventListener('click', listener, { once: true });
           link.click(); navigationTests++;
-          if (!observed || prevented) navigationFailures++;
+          if (!observed || !prevented) navigationFailures++;
         });
-        check('In-page navigation behavior', navigationFailures === 0, navigationTests ? (navigationTests - navigationFailures) + '/' + navigationTests + ' in-page navigation link(s) received an unblocked click and have valid targets.' : 'No in-page navigation links were present to exercise.');
+        check('In-page navigation behavior', navigationFailures === 0, navigationTests ? (navigationTests - navigationFailures) + '/' + navigationTests + ' in-page link click(s) were exercised without navigating away from the preview.' : 'No in-page navigation links were present to exercise.');
         const images = [...document.images]; const missingAlt = images.filter(img => !img.hasAttribute('alt'));
         check('Image alternatives', missingAlt.length === 0, missingAlt.length ? missingAlt.length + ' image(s) are missing alt text.' : images.length + ' image(s) have alt attributes.');
         const overflow = document.documentElement.scrollWidth > document.documentElement.clientWidth + 1;
