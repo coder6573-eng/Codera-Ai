@@ -175,26 +175,10 @@ test('phone layout keeps version history and ZIP export accessible', async ({ pa
 
 test('starter website is visibly rendered inside the live preview iframe', async ({ page }) => {
   await page.goto('/');
-  const frameElement = page.locator('iframe[title="Website preview"]');
-  const srcDoc = await frameElement.evaluate(el => (el as HTMLIFrameElement).srcdoc);
-  const bodySnapshot = await frameElement.contentFrame().locator('body').evaluate(el => ({ text: el.innerText, html: el.innerHTML, title: document.title }));
-  const persisted = await page.evaluate(() => localStorage.getItem('codera-workspaces-v1'));
-  const frames = await Promise.all(page.frames().map(async frame => ({
-    url: frame.url(),
-    name: frame.name(),
-    parentUrl: frame.parentFrame()?.url() || null,
-    title: await frame.title().catch(() => ''),
-    body: await frame.locator('body').innerText().catch(() => '')
-  })));
-  console.log('PREVIEW_DIAGNOSTIC', JSON.stringify({
-    srcDocLength: srcDoc.length,
-    hasStarterHeading: srcDoc.includes('Make something'),
-    hasStarterCopy: srcDoc.includes('YOUR CANVAS IS READY'),
-    srcDocTail: srcDoc.slice(-1100),
-    bodySnapshot,
-    frames,
-    persisted: persisted?.slice(0, 1300)
-  }));
+  const previewElement = page.locator('iframe[title="Website preview"]');
+  const srcDoc = await previewElement.evaluate(el => (el as HTMLIFrameElement).srcdoc);
+  expect(srcDoc).toContain('Make something');
+  expect(srcDoc).toContain('YOUR CANVAS IS READY');
   const previewFrame = page.frameLocator('iframe[title="Website preview"]');
   await expect(previewFrame.getByRole('heading', { name: /Make something/ })).toBeVisible();
   await expect(previewFrame.getByText('YOUR CANVAS IS READY')).toBeVisible();
