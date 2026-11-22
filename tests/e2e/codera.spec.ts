@@ -145,5 +145,5 @@ test('project builds create restorable version-history checkpoints', async ({ pa
   await page.locator('.version-menu button').first().click();
   await expect.poll(async () => {
     return await page.locator('iframe[title="Website preview"]').evaluate(el => (el as HTMLIFrameElement).srcdoc);
-  }).toContain('Make something');
+  }).toContain('Interaction fixture');
 });
