@@ -97,3 +97,53 @@ test('workspace and project navigation controls remain functional', async ({ pag
   await page.getByRole('button', { name: 'Create project' }).click();
   await expect(page.getByRole('heading', { name: 'My first website' })).toBeVisible();
 });
+
+test('Floot-imported local workspaces and files are migrated without losing projects', async ({ page }) => {
+  await page.addInitScript((data) => localStorage.setItem('codera-floot-api-v1', JSON.stringify(data)), {
+    workspaces: [{ id: 'imported-workspace', name: 'Imported workspace' }],
+    projects: [{
+      id: 'imported-project', workspaceId: 'imported-workspace', name: 'Imported website',
+      prompt: 'Keep my existing website', status: 'built',
+      planJson: { features: ['Preserve the original content', 'Keep the responsive styles'] },
+      updatedAt: new Date(1700000000000).toISOString()
+    }],
+    files: {
+      'imported-project': [
+        { path: 'index.html', language: 'html', content: '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Migrated site</title></head><body><main><h1>Floot migration preserved</h1></main></body></html>' },
+        { path: 'styles.css', language: 'css', content: 'body{font:16px system-ui}' }
+      ]
+    }
+  });
+  await page.goto('/');
+  await expect(page.getByRole('heading', { name: 'Imported website' })).toBeVisible();
+  const source = await page.locator('iframe[title="Website preview"]').evaluate(el => (el as HTMLIFrameElement).srcdoc);
+  expect(source).toContain('Floot migration preserved');
+  expect(source).toContain('Migrated site');
+  expect(await page.evaluate(() => localStorage.getItem('codera-workspaces-v1'))).toContain('Imported website');
+});
+
+test('project builds create restorable version-history checkpoints', async ({ page }) => {
+  await page.route('**/api/generate', async route => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        summary: 'A first generated page',
+        files: [
+          { path: 'index.html', content: '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Generated page</title></head><body><main><h1>Generated checkpoint</h1></main></body></html>' },
+          { path: 'styles.css', content: 'body{margin:0;font:16px system-ui}' }
+        ]
+      })
+    });
+  });
+  await openApp(page);
+  await page.locator('.prompt-card textarea').fill('Build a clean responsive landing page');
+  await page.getByRole('button', { name: /Build project/ }).click();
+  await expect(page.getByText('Build complete · Kilo Auto Free')).toBeVisible();
+  await page.getByRole('button', { name: /Version history/ }).click();
+  await expect(page.getByText('Before build')).toBeVisible();
+  await page.locator('.version-menu button').first().click();
+  await expect.poll(async () => {
+    return await page.locator('iframe[title="Website preview"]').evaluate(el => (el as HTMLIFrameElement).srcdoc);
+  }).toContain('Make something');
+});
