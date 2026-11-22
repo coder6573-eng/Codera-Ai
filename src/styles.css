@@ -160,3 +160,9 @@ button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px soli
 .project-menu button:hover{background:#f5f2ff;color:#514087}
 .project-menu button.danger{color:#a34b4b}
 .project-menu button.danger:hover{background:#fff2f1;color:#8e3434}
+
+
+/* Keep version history reachable on phones; ZIP export moves into project options there. */
+.version-trigger{display:inline-flex;align-items:center;justify-content:center;border:0;background:transparent;color:#68645f;font-size:11px;padding:8px;white-space:nowrap;cursor:pointer}
+.version-trigger:hover{color:#4e3d88}
+@media(max-width:800px){.version-trigger{padding:8px 6px;font-size:10px}}
