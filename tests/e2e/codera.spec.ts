@@ -172,3 +172,11 @@ test('phone layout keeps version history and ZIP export accessible', async ({ pa
   const download = await downloadPromise;
   expect(download.suggestedFilename()).toMatch(/source\.zip$/);
 });
+
+test('starter website is visibly rendered inside the live preview iframe', async ({ page }) => {
+  await openApp(page);
+  const previewFrame = page.frameLocator('iframe[title="Website preview"]');
+  await expect(previewFrame.getByRole('heading', { name: /Make something/ })).toBeVisible();
+  await expect(previewFrame.getByText('YOUR CANVAS IS READY')).toBeVisible();
+  await expect(previewFrame.locator('body')).toHaveCSS('background-color', 'rgb(12, 16, 32)');
+});
