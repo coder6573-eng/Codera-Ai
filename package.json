@@ -23,7 +23,8 @@
     "react-dom": "latest",
     "@capacitor/core": "^7.4.3",
     "@capacitor/android": "^7.4.3",
-    "lucide-react": "^0.468.0"
+    "lucide-react": "^0.468.0",
+    "fflate": "^0.8.2"
   },
   "devDependencies": {
     "@playwright/test": "^1.56.1",
