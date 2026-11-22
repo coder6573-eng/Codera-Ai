@@ -140,3 +140,14 @@ button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px soli
 .browser.tablet{width:min(768px,100%);margin-inline:auto;border-radius:12px;overflow:hidden}
 .preview-bar button[aria-label]{min-width:34px}
 .preview-bar button:focus-visible,.workspace-switch:focus-visible,.project-list button:focus-visible{outline:2px solid #8b75d7;outline-offset:2px}
+
+
+/* Version history popover */
+.version-control{position:relative}
+.version-menu{position:absolute;right:0;top:calc(100% + 12px);z-index:45;width:min(310px,calc(100vw - 28px));padding:12px;background:#fff;border:1px solid #e5e1db;border-radius:13px;box-shadow:0 18px 55px #29222e22;color:#302e34}
+.version-menu>b{display:block;padding:2px 5px 9px;font-size:12px}
+.version-menu>p{margin:0;padding:8px 5px;color:#817d76;font-size:11px;line-height:1.5}
+.version-menu>button{display:flex;width:100%;flex-direction:column;gap:4px;border:0;border-top:1px solid #eeeae5;background:#fff;padding:10px 5px;text-align:left;color:#39363e;border-radius:0}
+.version-menu>button:hover{background:#f7f5ff;color:#514087}
+.version-menu>button span{font-size:11px;font-weight:600}
+.version-menu>button small{font-size:9px;color:#8d8983}
