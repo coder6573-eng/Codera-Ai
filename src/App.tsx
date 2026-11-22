@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, ArrowRight, Bot, Check, CheckCircle2, ChevronDown, ChevronRight, CircleAlert, Clock3, Code2, Download, Eye, FileCode2, FolderKanban, HardDrive, History as HistoryIcon, Home, LayoutGrid, List, Menu, MessageSquare, Monitor, Moon, MoreHorizontal, Pencil, Plus, RefreshCw, Search, Send, Settings, ShieldCheck, Smartphone, Sparkles, Sun, Tablet, Trash2, Wrench, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Bot, Check, CheckCircle2, ChevronDown, ChevronRight, CircleAlert, Clock3, Code2, Download, Eye, FileCode2, FolderKanban, HardDrive, History as HistoryIcon, Home, LayoutGrid, List, MessageSquare, Monitor, Moon, MoreHorizontal, Pencil, Plus, RefreshCw, Search, Send, Settings, ShieldCheck, Smartphone, Sparkles, Sun, Tablet, Trash2, Wrench, X } from 'lucide-react';
 import { zipSync, strToU8 } from 'fflate';
 import { keylessAI } from './aiClient';
 
@@ -88,7 +88,7 @@ export default function App() {
   const [mode, setMode] = useState<'plan' | 'build'>(() => {
     try { return localStorage.getItem('codera.ui.mode') === 'build' ? 'build' : 'plan'; } catch { return 'plan'; }
   });
-  const [panel, setPanel] = useState<'preview' | 'code'>('preview');
+  const [, setPanel] = useState<'preview' | 'code'>('preview');
   const [theme, setTheme] = useState<'system' | 'light' | 'dark'>(() => {
     try {
       const saved = localStorage.getItem('codera.ui.theme');
@@ -107,7 +107,7 @@ export default function App() {
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [prompt, setPrompt] = useState('');
   const [selectedFile, setSelectedFile] = useState('index.html');
-  const [mobileMenu, setMobileMenu] = useState(false);
+  const [, setMobileMenu] = useState(false);
   const [workspaceMenu, setWorkspaceMenu] = useState(false);
   const [newWorkspace, setNewWorkspace] = useState(false);
   const [workspaceName, setWorkspaceName] = useState('');
