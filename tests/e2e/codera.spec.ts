@@ -175,6 +175,11 @@ test('phone layout keeps version history and ZIP export accessible', async ({ pa
 
 test('starter website is visibly rendered inside the live preview iframe', async ({ page }) => {
   await page.goto('/');
+  const frameElement = page.locator('iframe[title="Website preview"]');
+  const srcDoc = await frameElement.evaluate(el => (el as HTMLIFrameElement).srcdoc);
+  const bodySnapshot = await frameElement.contentFrame().locator('body').evaluate(el => ({ text: el.innerText, html: el.innerHTML, title: document.title }));
+  const persisted = await page.evaluate(() => localStorage.getItem('codera-workspaces-v1'));
+  console.log('PREVIEW_DIAGNOSTIC', JSON.stringify({ srcDocStart: srcDoc.slice(0, 900), srcDocLength: srcDoc.length, bodySnapshot, persisted: persisted?.slice(0, 1300) }));
   const previewFrame = page.frameLocator('iframe[title="Website preview"]');
   await expect(previewFrame.getByRole('heading', { name: /Make something/ })).toBeVisible();
   await expect(previewFrame.getByText('YOUR CANVAS IS READY')).toBeVisible();
