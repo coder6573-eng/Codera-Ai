@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { ArrowUp, ChevronLeft, Code2, Eye, Folder, Hammer, ListChecks, Menu, Plus, Sparkles, WandSparkles } from "lucide-react";
-import { keylessAI } from "../../src/aiClient";
+import { keylessAI } from "./aiClient";
 
 type Mode = "plan" | "build";
 type Workspace = { id: string; name: string };
