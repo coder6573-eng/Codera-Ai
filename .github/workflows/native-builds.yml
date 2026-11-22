@@ -59,7 +59,7 @@ jobs:
               source = path.read_text()
               source = source.replace(
                   "mavenCentral()",
-                  "maven { url 'https://repo1.maven.org/maven2' }\\n        mavenCentral()"
+                  "maven { url 'https://repo1.maven.org/maven2' }\n        mavenCentral()"
               )
               path.write_text(source)
           PY
