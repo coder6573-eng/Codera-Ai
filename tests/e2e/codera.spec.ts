@@ -174,7 +174,7 @@ test('phone layout keeps version history and ZIP export accessible', async ({ pa
 });
 
 test('starter website is visibly rendered inside the live preview iframe', async ({ page }) => {
-  await openApp(page);
+  await page.goto('/');
   const previewFrame = page.frameLocator('iframe[title="Website preview"]');
   await expect(previewFrame.getByRole('heading', { name: /Make something/ })).toBeVisible();
   await expect(previewFrame.getByText('YOUR CANVAS IS READY')).toBeVisible();
