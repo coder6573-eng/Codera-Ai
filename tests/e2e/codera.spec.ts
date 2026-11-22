@@ -93,6 +93,7 @@ test('failed preview audits are sent to the repair engine and retested', async (
 
 test('workspace and project navigation controls remain functional', async ({ page }) => {
   await openApp(page);
+  await page.getByRole('button', { name: 'Back to projects' }).click();
   await page.getByRole('button', { name: /E2E workspace/ }).click();
   await page.getByRole('button', { name: /Create workspace/ }).click();
   await page.getByPlaceholder('e.g. Personal projects').fill('Client work');
