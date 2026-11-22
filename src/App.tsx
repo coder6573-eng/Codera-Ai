@@ -385,7 +385,7 @@ export default function App() {
   const openProject = (item: Project) => {
     setProjectId(item.id);
     setScreen('builder');
-    setActiveView(isPhone ? 'chat' : item.plan.length && !item.versions?.length ? 'plan' : 'preview');
+    setActiveView(isPhone ? 'chat' : item.files.length ? 'preview' : item.plan.length ? 'plan' : 'preview');
     setPanel('preview');
     setSelectedFile('index.html');
     setMobileMenu(false);
