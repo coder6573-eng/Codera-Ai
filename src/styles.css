@@ -305,3 +305,14 @@ body{background:#f7f7f5;color:#202124}
  .preview-bar button{padding:0 7px}
  .status{font-size:9px}
 }
+
+
+/* Layout safety and keyboard accessibility. */
+@media(max-width:920px){
+ .workspace-grid{grid-template-columns:minmax(0,1fr)}
+ .right-column{min-height:500px}
+}
+button:focus-visible,input:focus-visible,textarea:focus-visible,[role=button]:focus-visible{outline:2px solid #8a73d4;outline-offset:2px}
+@media(prefers-reduced-motion:reduce){
+ *,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+}
