@@ -526,3 +526,5 @@ button:disabled{cursor:not-allowed;opacity:.48}
   .cd-button,.cd-project-card,.cd-search-field,.cd-setting-section{border:1px solid ButtonText}
   :focus-visible{outline:2px solid Highlight}
 }
+
+button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible,[role=button]:focus-visible{outline:2px solid var(--cd-focus);outline-offset:2px}
