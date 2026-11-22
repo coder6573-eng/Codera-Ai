@@ -160,3 +160,15 @@ test('project menu supports safe rename and confirmed deletion', async ({ page }
   await page.getByRole('menuitem', { name: 'Delete project' }).click();
   await expect(page.getByRole('heading', { name: 'A workspace for your next idea.' })).toBeVisible();
 });
+
+test('phone layout keeps version history and ZIP export accessible', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 820 });
+  await openApp(page);
+  await expect(page.getByRole('button', { name: 'Version history' })).toBeVisible();
+  await page.getByRole('button', { name: 'Project options' }).click();
+  await expect(page.getByRole('menuitem', { name: 'Export project ZIP' })).toBeVisible();
+  const downloadPromise = page.waitForEvent('download');
+  await page.getByRole('menuitem', { name: 'Export project ZIP' }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toMatch(/source\.zip$/);
+});
