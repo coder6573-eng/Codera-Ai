@@ -147,3 +147,16 @@ test('project builds create restorable version-history checkpoints', async ({ pa
     return await page.locator('iframe[title="Website preview"]').evaluate(el => (el as HTMLIFrameElement).srcdoc);
   }).toContain('Interaction fixture');
 });
+
+test('project menu supports safe rename and confirmed deletion', async ({ page }) => {
+  await openApp(page);
+  await page.getByRole('button', { name: 'Project options' }).click();
+  await page.getByRole('menuitem', { name: 'Rename project' }).click();
+  await page.getByLabel('Project name').fill('Renamed studio project');
+  await page.getByRole('button', { name: 'Save name' }).click();
+  await expect(page.getByRole('heading', { name: 'Renamed studio project' })).toBeVisible();
+  await page.getByRole('button', { name: 'Project options' }).click();
+  page.once('dialog', dialog => dialog.accept());
+  await page.getByRole('menuitem', { name: 'Delete project' }).click();
+  await expect(page.getByRole('heading', { name: 'A workspace for your next idea.' })).toBeVisible();
+});
