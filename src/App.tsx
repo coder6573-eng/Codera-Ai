@@ -7,7 +7,8 @@ const parseAIJson = <T,>(value: string): T => {
 };
 
 type FileItem = { path: string; content: string };
-type Project = { id: string; name: string; files: FileItem[]; plan: string[]; updated: number };
+type ProjectVersion = { id: string; label: string; files: FileItem[]; created: number };
+type Project = { id: string; name: string; files: FileItem[]; plan: string[]; updated: number; versions?: ProjectVersion[] };
 type Workspace = { id: string; name: string; projects: Project[] };
 const id = () => Math.random().toString(36).slice(2, 10);
 const starterFiles: FileItem[] = [
@@ -16,7 +17,41 @@ const starterFiles: FileItem[] = [
   { path: 'app.js', content: "document.querySelector('a')?.addEventListener('click',()=>console.log('Welcome to your project'));" }
 ];
 const makeProject = (n = 1): Project => ({ id: id(), name: n === 1 ? 'My first website' : 'Untitled project ' + n, files: starterFiles.map(f => ({ ...f })), plan: [], updated: Date.now() });
-const load = (): Workspace[] => { try { const v = localStorage.getItem('codera-workspaces-v1'); if (v) { const parsed = JSON.parse(v) as Workspace[]; if (Array.isArray(parsed) && parsed.length) return parsed; } } catch { /* reset corrupt local state */ } return [{ id: id(), name: 'Personal workspace', projects: [makeProject()] }]; };
+const load = (): Workspace[] => {
+  try {
+    const saved = localStorage.getItem('codera-workspaces-v1');
+    if (saved) {
+      const parsed = JSON.parse(saved) as Workspace[];
+      if (Array.isArray(parsed) && parsed.length) return parsed;
+    }
+    // Migrate workspace/project data created by the Floot-imported local adapter.
+    const imported = localStorage.getItem('codera-floot-api-v1');
+    if (imported) {
+      const source = JSON.parse(imported) as {
+        workspaces?: Array<{ id?: string; name?: string }>;
+        projects?: Array<{ id?: string; workspaceId?: string; name?: string; planJson?: { features?: unknown[] } | null; updatedAt?: string }>;
+        files?: Record<string, Array<{ path?: string; content?: string }>>;
+      };
+      const migrated = (source.workspaces || []).filter(w => typeof w.id === 'string').map(w => ({
+        id: w.id as string,
+        name: String(w.name || 'Workspace'),
+        projects: (source.projects || []).filter(p => p.workspaceId === w.id && typeof p.id === 'string').map(p => ({
+          id: p.id as string,
+          name: String(p.name || 'Untitled project'),
+          files: (source.files?.[p.id as string] || []).filter(f => typeof f.path === 'string' && typeof f.content === 'string').map(f => ({ path: f.path as string, content: f.content as string })),
+          plan: Array.isArray(p.planJson?.features) ? p.planJson!.features.filter((step): step is string => typeof step === 'string').slice(0, 8) : [],
+          updated: Number.isFinite(Date.parse(String(p.updatedAt || ''))) ? Date.parse(String(p.updatedAt)) : Date.now(),
+          versions: []
+        }))
+      }));
+      if (migrated.length) {
+        localStorage.setItem('codera-workspaces-v1', JSON.stringify(migrated));
+        return migrated;
+      }
+    }
+  } catch { /* Ignore corrupt legacy data and start a clean local workspace. */ }
+  return [{ id: id(), name: 'Personal workspace', projects: [makeProject()] }];
+};
 const planFor = (idea: string) => ['Define the structure and main user journey for ' + idea + '.', 'Build a responsive layout with a clear visual hierarchy and accessible interactions.', 'Implement the styling, content, and functional client-side behaviour.', 'Check mobile and desktop layouts, then refine the result.'];
 const validateGeneratedFiles = (input: unknown): FileItem[] => {
   if (!Array.isArray(input)) throw new Error('The AI response did not include a file list.');
@@ -60,6 +95,7 @@ export default function App() {
   const [mobilePreview, setMobilePreview] = useState(false);
   const [tabletPreview, setTabletPreview] = useState(false);
   const [previewRefresh, setPreviewRefresh] = useState(0);
+  const [showVersions, setShowVersions] = useState(false);
   const [history, setHistory] = useState<string[]>([]);
   const [runtimeErrors, setRuntimeErrors] = useState<string[]>([]);
   const [previewChecks, setPreviewChecks] = useState<Array<{ name: string; status: 'pass' | 'fail'; message: string }>>([]);
@@ -166,6 +202,26 @@ export default function App() {
     if (!workspace || !project) return;
     setWorkspaces(prev => prev.map(w => w.id !== workspace.id ? w : { ...w, projects: w.projects.map(p => p.id === project.id ? fn(p) : p) }));
   };
+  const snapshotVersion = (current: Project, label: string): ProjectVersion => ({
+    id: id(), label, files: current.files.map(item => ({ ...item })), created: Date.now()
+  });
+  const restoreVersion = (versionId: string) => {
+    if (!project) return;
+    const version = (project.versions || []).find(item => item.id === versionId);
+    if (!version) return;
+    updateProject(current => ({
+      ...current,
+      files: version.files.map(item => ({ ...item })),
+      versions: [snapshotVersion(current, 'Before restore'), ...(current.versions || []).filter(item => item.id !== versionId)].slice(0, 12),
+      updated: Date.now()
+    }));
+    setSelectedFile('index.html');
+    setPanel('preview');
+    setShowVersions(false);
+    setPreviewReady(false);
+    setPreviewRefresh(value => value + 1);
+    setStatus('Restored version · preview refreshed');
+  };
   const createProject = () => {
     if (!workspace) return;
     const next = makeProject(workspace.projects.length + 1);
@@ -209,7 +265,7 @@ export default function App() {
       setPreviewChecks([]);
       setPreviewReady(false);
       setAutoTestRepairEnabled(true);
-      updateProject(p => ({ ...p, files: safe, plan: p.plan.length ? p.plan : planFor(prompt.trim()), updated: Date.now() }));
+      updateProject(p => ({ ...p, versions: p.files.length ? [snapshotVersion(p, 'Before build'), ...(p.versions || [])].slice(0, 12) : (p.versions || []), files: safe, plan: p.plan.length ? p.plan : planFor(prompt.trim()), updated: Date.now() }));
       setSelectedFile('index.html'); setPanel('preview'); setPrompt(''); setStatus('Build complete · Kilo Auto Free');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Build failed.');
@@ -226,7 +282,7 @@ export default function App() {
       const raw = await keylessAI('build', repairPrompt, project.name, project.files, project.plan);
       const data = parseAIJson<{ summary?: string; files?: FileItem[] }>(raw);
       const safe = validateGeneratedFiles(data.files);
-      updateProject(p => ({ ...p, files: safe, updated: Date.now() }));
+      updateProject(p => ({ ...p, versions: p.files.length ? [snapshotVersion(p, 'Before auto-repair'), ...(p.versions || [])].slice(0, 12) : (p.versions || []), files: safe, updated: Date.now() }));
       setSelectedFile('index.html'); setPanel('preview'); setRuntimeErrors([]); setStatus('Repair applied · rerunning preview checks…');
     } catch (e) { setError(e instanceof Error ? e.message : 'Preview repair failed.'); setStatus('Repair needs attention'); }
     finally { setBusy(false); }
@@ -274,7 +330,7 @@ export default function App() {
       <div className="sidebar-bottom"><div className="plan-note"><b>Build workspace <span>FREE</span></b><p>Your ideas, one build at a time.</p><small>AI: Kilo Auto Free · no key</small></div><div className="profile"><span>C</span><div><b>Creator</b><small>Personal account</small></div></div></div>
     </aside>
     <main className="main">
-      <header className="topbar"><div className="crumbs"><button className="menu-button" onClick={() => setMobileMenu(true)}>☰</button><span>Projects</span><b>›</b><strong>{project?.name || 'New project'}</strong></div><div className="top-actions"><span className="saved"><i/> Saved locally</span><button className="export" onClick={download}>↧ Export</button><button className="preview-top" onClick={() => setPanel('preview')}>◉ Preview</button></div></header>
+      <header className="topbar"><div className="crumbs"><button className="menu-button" onClick={() => setMobileMenu(true)}>☰</button><span>Projects</span><b>›</b><strong>{project?.name || 'New project'}</strong></div><div className="top-actions"><span className="saved"><i/> Saved locally</span><div className="version-control"><button className="export" onClick={() => setShowVersions(value => !value)} aria-expanded={showVersions} aria-label="Version history">↻ Versions</button>{showVersions && <div className="version-menu"><b>Version history</b>{project?.versions?.length ? project.versions.map(version => <button key={version.id} onClick={() => restoreVersion(version.id)}><span>{version.label}</span><small>{new Date(version.created).toLocaleString()}</small></button>) : <p>Your build and repair checkpoints will appear here.</p>}</div>}</div><button className="export" onClick={download}>↓ Export ZIP</button><button className="preview-top" onClick={() => setPanel('preview')}>◉ Preview</button></div></header>
       {!project ? <section className="empty"><div>◇</div><h1>A workspace for your next idea.</h1><p>Create a project to start building with Codera.</p><button className="primary" onClick={createProject}>＋ Create project</button></section> : <>
         <section className="project-heading"><div><small>PROJECT WORKSPACE <span>·</span> {new Date(project.updated).toLocaleDateString()}</small><h1>{project.name}</h1><p>A place to shape your next idea into a working website.</p></div><button className="more" title="Delete project" disabled={workspace.projects.length < 2} onClick={deleteProject}>•••</button></section>
         <section className="workspace-grid">
