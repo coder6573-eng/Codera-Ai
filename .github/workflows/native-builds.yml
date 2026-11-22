@@ -47,11 +47,29 @@ jobs:
       - run: npm run build
       - run: npx cap add android
       - run: npx cap sync android
+      - name: Add Maven Central fallback for Android dependencies
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          for name in ("build.gradle", "settings.gradle"):
+              path = Path("android") / name
+              if not path.exists():
+                  continue
+              source = path.read_text()
+              source = source.replace(
+                  "mavenCentral()",
+                  "maven { url 'https://repo1.maven.org/maven2' }\\n        mavenCentral()"
+              )
+              path.write_text(source)
+          PY
+          curl --fail --silent --show-error --retry 3 --retry-all-errors https://repo.maven.apache.org/maven2/org/jetbrains/kotlin/kotlin-stdlib-jdk8/1.9.20/kotlin-stdlib-jdk8-1.9.20.pom -o /dev/null
+          curl --fail --silent --show-error --retry 3 --retry-all-errors https://repo1.maven.org/maven2/org/jetbrains/kotlin/kotlin-stdlib-jdk8/1.9.20/kotlin-stdlib-jdk8-1.9.20.pom -o /dev/null
       - name: Build installable debug APK
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleDebug
+          ./gradlew assembleDebug --no-daemon --refresh-dependencies
       - uses: actions/upload-artifact@v4
         with:
           name: codera-android-apk
