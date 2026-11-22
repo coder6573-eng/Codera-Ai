@@ -96,6 +96,9 @@ export default function App() {
   const [tabletPreview, setTabletPreview] = useState(false);
   const [previewRefresh, setPreviewRefresh] = useState(0);
   const [showVersions, setShowVersions] = useState(false);
+  const [projectMenuOpen, setProjectMenuOpen] = useState(false);
+  const [renameProjectOpen, setRenameProjectOpen] = useState(false);
+  const [projectNameDraft, setProjectNameDraft] = useState('');
   const [history, setHistory] = useState<string[]>([]);
   const [runtimeErrors, setRuntimeErrors] = useState<string[]>([]);
   const [previewChecks, setPreviewChecks] = useState<Array<{ name: string; status: 'pass' | 'fail'; message: string }>>([]);
@@ -314,9 +317,21 @@ export default function App() {
     setStatus('Project exported as ZIP');
   };
   const deleteProject = () => {
-    if (!workspace || !project || workspace.projects.length < 2) return;
+    if (!workspace || !project || !window.confirm('Delete "' + project.name + '"? This cannot be undone.')) return;
     const rest = workspace.projects.filter(p => p.id !== project.id);
-    setWorkspaces(prev => prev.map(w => w.id === workspace.id ? { ...w, projects: rest } : w)); setProjectId(rest[0].id); setAutoTestRepairEnabled(false);
+    setWorkspaces(prev => prev.map(w => w.id === workspace.id ? { ...w, projects: rest } : w));
+    setProjectId(rest[0]?.id || '');
+    setAutoTestRepairEnabled(false);
+    setProjectMenuOpen(false);
+  };
+  const renameProject = () => {
+    const nextName = projectNameDraft.trim().slice(0, 80);
+    if (!nextName) return;
+    updateProject(current => ({ ...current, name: nextName, updated: Date.now() }));
+    setRenameProjectOpen(false);
+    setProjectNameDraft('');
+    setProjectMenuOpen(false);
+    setStatus('Project renamed');
   };
   return <div className="shell">
     <aside className={'sidebar ' + (mobileMenu ? 'open' : '')}>
@@ -332,7 +347,7 @@ export default function App() {
     <main className="main">
       <header className="topbar"><div className="crumbs"><button className="menu-button" onClick={() => setMobileMenu(true)}>☰</button><span>Projects</span><b>›</b><strong>{project?.name || 'New project'}</strong></div><div className="top-actions"><span className="saved"><i/> Saved locally</span><div className="version-control"><button className="export" onClick={() => setShowVersions(value => !value)} aria-expanded={showVersions} aria-label="Version history">↻ Versions</button>{showVersions && <div className="version-menu"><b>Version history</b>{project?.versions?.length ? project.versions.map(version => <button key={version.id} onClick={() => restoreVersion(version.id)}><span>{version.label}</span><small>{new Date(version.created).toLocaleString()}</small></button>) : <p>Your build and repair checkpoints will appear here.</p>}</div>}</div><button className="export" onClick={download}>↓ Export ZIP</button><button className="preview-top" onClick={() => setPanel('preview')}>◉ Preview</button></div></header>
       {!project ? <section className="empty"><div>◇</div><h1>A workspace for your next idea.</h1><p>Create a project to start building with Codera.</p><button className="primary" onClick={createProject}>＋ Create project</button></section> : <>
-        <section className="project-heading"><div><small>PROJECT WORKSPACE <span>·</span> {new Date(project.updated).toLocaleDateString()}</small><h1>{project.name}</h1><p>A place to shape your next idea into a working website.</p></div><button className="more" title="Delete project" disabled={workspace.projects.length < 2} onClick={deleteProject}>•••</button></section>
+        <section className="project-heading"><div><small>PROJECT WORKSPACE <span>·</span> {new Date(project.updated).toLocaleDateString()}</small><h1>{project.name}</h1><p>A place to shape your next idea into a working website.</p></div><div className="project-actions"><button className="more" title="Project options" aria-label="Project options" aria-haspopup="menu" aria-expanded={projectMenuOpen} onClick={() => setProjectMenuOpen(value => !value)}>•••</button>{projectMenuOpen && <div className="project-menu" role="menu"><button role="menuitem" onClick={() => { setProjectNameDraft(project?.name || ''); setRenameProjectOpen(true); setProjectMenuOpen(false); }}>Rename project</button><button role="menuitem" className="danger" onClick={deleteProject}>Delete project</button></div>}</div></section>
         <section className="workspace-grid">
           <div className="left-column">
             <div className="mode-switch"><button className={mode === 'plan' ? 'active' : ''} onClick={() => setMode('plan')}>◇ Plan</button><button className={mode === 'build' ? 'active' : ''} onClick={() => setMode('build')}>✧ Build</button><small>{mode === 'plan' ? 'Think it through' : 'Make it real'}</small></div>
@@ -353,6 +368,7 @@ export default function App() {
         <footer className="page-foot"><span>Built with <b>Codera AI</b></span><span>Ideas into interfaces.</span></footer>
       </>}
     </main>
+    {renameProjectOpen && <div className="modal-backdrop" onClick={e => { if (e.target === e.currentTarget) setRenameProjectOpen(false); }}><section className="modal" role="dialog" aria-modal="true" aria-labelledby="rename-project-title"><div className="modal-symbol">✎</div><h2 id="rename-project-title">Rename project</h2><p>Choose a clear name for this project.</p><label htmlFor="project-name">Project name</label><input id="project-name" autoFocus maxLength={80} value={projectNameDraft} onChange={e => setProjectNameDraft(e.target.value)} onKeyDown={e => e.key === 'Enter' && renameProject()} placeholder="Project name"/><div><button onClick={() => setRenameProjectOpen(false)}>Cancel</button><button className="primary" disabled={!projectNameDraft.trim()} onClick={renameProject}>Save name</button></div></section></div>}
     {newWorkspace && <div className="modal-backdrop" onClick={e => { if (e.target === e.currentTarget) setNewWorkspace(false); }}><section className="modal"><div className="modal-symbol">◇</div><h2>Create a workspace</h2><p>Keep projects organized by team, client, or idea.</p><label>Workspace name</label><input autoFocus value={workspaceName} onChange={e => setWorkspaceName(e.target.value)} onKeyDown={e => e.key === 'Enter' && addWorkspace()} placeholder="e.g. Personal projects"/><div><button onClick={() => setNewWorkspace(false)}>Cancel</button><button className="primary" disabled={!workspaceName.trim()} onClick={addWorkspace}>Create workspace</button></div></section></div>}
     </div>;
 }
