@@ -7,6 +7,16 @@
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
+const BUNDLED_NODE = require.resolve('node');
+function findPackageRoot(entry, marker) {
+  let cursor = path.dirname(entry);
+  while (cursor && cursor !== path.dirname(cursor)) {
+    if (require('node:fs').existsSync(path.join(cursor, 'bin', marker))) return cursor;
+    cursor = path.dirname(cursor);
+  }
+  throw new Error('Bundled npm runtime is missing: ' + marker);
+}
+const NPM_ROOT = findPackageRoot(require.resolve('npm'), 'npm-cli.js');
 
 const MAX_FILE_BYTES = 500_000;
 const MAX_FILES = 250;
@@ -15,7 +25,7 @@ const COMMAND_TIMEOUT_MS = 120_000;
 const PROTECTED = new Set(['.git', 'node_modules', '.ssh', '.aws', '.azure', '.gnupg', '.config']);
 
 const COMMANDS = new Set([
-  'node', 'npm', 'npx', 'pnpm', 'yarn', 'git', 'python', 'python3',
+  'node', 'npm', 'npx', 'git', 'python', 'python3',
   'pytest', 'tsc', 'vite', 'eslint', 'prettier', 'rg', 'ls', 'pwd',
   'cat', 'head', 'tail', 'wc', 'find'
 ]);
@@ -197,27 +207,19 @@ function createNativeAgentService(userDataPath) {
     return new Promise((resolve, reject) => {
       const collector = cappedCollector();
       const windows = process.platform === 'win32';
-      const command = windows ? executable + (['npm', 'npx', 'pnpm', 'yarn'].includes(executable) ? '.cmd' : '.exe') : executable;
-      const windowsCommand = [command, ...payload.args].map(value => '"' + String(value).replace(/"/g, '""') + '"').join(' ');
-      const child = windows
-        ? spawn(process.env.ComSpec || 'cmd.exe', ['/d', '/s', '/c', windowsCommand], {
-          cwd, shell: false, windowsHide: true,
-          env: {
-            PATH: process.env.PATH || '',
-            HOME: process.env.HOME || userDataPath,
-            USERPROFILE: process.env.USERPROFILE || userDataPath,
-            TMP: process.env.TMP || userDataPath,
-            TEMP: process.env.TEMP || userDataPath,
-            CI: '1', NO_COLOR: '1'
-          },
-          stdio: ['ignore', 'pipe', 'pipe']
-        })
-        : spawn(command, payload.args, {
+      const bundled = ['node', 'npm', 'npx'].includes(executable);
+      const command = bundled ? BUNDLED_NODE : executable + (windows ? '.exe' : '');
+      const commandArgs = executable === 'npm'
+        ? [path.join(NPM_ROOT, 'bin', 'npm-cli.js'), ...payload.args]
+        : executable === 'npx'
+          ? [path.join(NPM_ROOT, 'bin', 'npx-cli.js'), ...payload.args]
+          : payload.args;
+      const child = spawn(command, commandArgs, {
         cwd,
         shell: false,
         windowsHide: true,
         env: {
-          PATH: process.env.PATH || '',
+          PATH: path.dirname(BUNDLED_NODE) + path.delimiter + (process.env.PATH || ''),
           HOME: process.env.HOME || userDataPath,
           USERPROFILE: process.env.USERPROFILE || userDataPath,
           TMP: process.env.TMP || userDataPath,
