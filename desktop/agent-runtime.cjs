@@ -7,6 +7,7 @@
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
+const { pathToFileURL, fileURLToPath } = require('node:url');
 function findPackageRoot(entry, marker) {
   let cursor = path.dirname(entry);
   while (cursor && cursor !== path.dirname(cursor)) {
@@ -201,6 +202,58 @@ function createNativeAgentService(userDataPath, appOptions = {}) {
     return matches;
   }
 
+
+  async function verifyBrowser(payload) {
+    const { base, target } = await resolveFile(payload.projectId, payload.path || 'index.html');
+    if (path.extname(target).toLowerCase() !== '.html') throw new Error('Browser verification requires an HTML entry file.');
+    const stat = await fs.stat(target);
+    if (!stat.isFile() || stat.size > MAX_FILE_BYTES) throw new Error('The HTML entry file is missing or too large.');
+    const browserPath = appOptions.isPackaged
+      ? path.join(appOptions.resourcesPath, 'playwright-browsers')
+      : (process.env.PLAYWRIGHT_BROWSERS_PATH || path.join(process.cwd(), '.codera-browser-cache'));
+    process.env.PLAYWRIGHT_BROWSERS_PATH = browserPath;
+    const { chromium } = require('playwright');
+    const browser = await chromium.launch({ headless: true });
+    const results = [];
+    try {
+      for (const viewport of [{ name: 'desktop', width: 1440, height: 900 }, { name: 'mobile', width: 390, height: 844 }]) {
+        const page = await browser.newPage({ viewport: { width: viewport.width, height: viewport.height } });
+        const consoleErrors = [];
+        const pageErrors = [];
+        page.on('console', message => {
+          if (message.type() === 'error') consoleErrors.push(message.text().slice(0, 500));
+        });
+        page.on('pageerror', error => pageErrors.push(error.message.slice(0, 500)));
+        await page.goto(pathToFileURL(target).href, { waitUntil: 'load', timeout: 20000 });
+        const metrics = await page.evaluate(() => ({
+          title: document.title,
+          bodyTextLength: (document.body?.innerText || '').trim().length,
+          viewportWidth: window.innerWidth,
+          documentWidth: document.documentElement.scrollWidth,
+          documentHeight: document.documentElement.scrollHeight,
+          hasMain: Boolean(document.querySelector('main')),
+          images: [...document.images].map(image => ({ alt: image.alt, loaded: image.complete && image.naturalWidth > 0 })).slice(0, 40)
+        }));
+        results.push({
+          viewport: viewport.name,
+          ...metrics,
+          horizontalOverflow: metrics.documentWidth > metrics.viewportWidth + 1,
+          consoleErrors,
+          pageErrors
+        });
+        await page.close();
+      }
+    } finally {
+      await browser.close();
+    }
+    return {
+      browser: 'Chromium headless (offline)',
+      entry: path.relative(base, target).split(path.sep).join('/'),
+      passed: results.every(result => !result.horizontalOverflow && result.pageErrors.length === 0),
+      results
+    };
+  }
+
   async function runCommand(payload) {
     const projectId = projectKey(payload.projectId);
     const executable = commandPolicy(payload.executable, payload.args, payload.approved === true);
@@ -253,7 +306,7 @@ function createNativeAgentService(userDataPath, appOptions = {}) {
     });
   }
 
-  return Object.freeze({ syncProject, listFiles, readFile, writeFile, deleteFile, searchFiles, runCommand });
+  return Object.freeze({ syncProject, listFiles, readFile, writeFile, deleteFile, searchFiles, verifyBrowser, runCommand });
 }
 
 module.exports = { createNativeAgentService };
