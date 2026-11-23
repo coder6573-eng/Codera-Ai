@@ -233,7 +233,7 @@ export function createWorkspaceTools(platform: AgentPlatform): AgentToolDefiniti
       try {
         const query = objectArgs(args, 'query').slice(0, 200);
         const results = searchOfflineGuides(query, 5);
-        return success(results.map((item, index) => (index + 1) + '. ' + item.title + '\\n' + item.excerpt).join('\\n\\n') || 'No matching offline guide was found.', { results });
+        return success(results.map((item, index) => (index + 1) + '. ' + item.title + '\n' + item.excerpt).join('\n\n') || 'No matching offline guide was found.', { results });
       } catch (error) { return failure(error); }
     },
   };
@@ -260,10 +260,10 @@ export function createWorkspaceTools(platform: AgentPlatform): AgentToolDefiniti
             'console errors: ' + String(Array.isArray(row.consoleErrors) ? row.consoleErrors.length : 0),
             'page errors: ' + String(Array.isArray(row.pageErrors) ? row.pageErrors.length : 0),
           ].join(' | ');
-        }).join('\\n');
+        }).join('\n');
         return result.passed
-          ? success('Offline browser verification completed.\\n' + summary, result)
-          : { ok: false, output: 'Browser verification found issues.\\n' + summary, data: result, error: 'Review browser verification results and repair the project.' };
+          ? success('Offline browser verification completed.\n' + summary, result)
+          : { ok: false, output: 'Browser verification found issues.\n' + summary, data: result, error: 'Review browser verification results and repair the project.' };
       } catch (error) { return failure(error); }
     },
   };
