@@ -189,6 +189,36 @@ export function createWorkspaceTools(platform: AgentPlatform): AgentToolDefiniti
     },
   };
 
+  const verifyBrowser: AgentToolDefinition = {
+    name: 'verify_browser',
+    description: 'Open the project HTML in Codera’s bundled offline Chromium browser at desktop and mobile viewport sizes. Report page errors, console errors, missing images, and horizontal overflow. Available in the desktop app.',
+    inputSchema: {
+      type: 'object',
+      properties: { path: { type: 'string', description: 'HTML entry path, usually index.html' } },
+      additionalProperties: false,
+    },
+    async execute(args, context) {
+      try {
+        if (!platform.verifyBrowser) return failure('Offline Chromium verification is available in the Codera desktop app, not this platform.');
+        const path = typeof args.path === 'string' && args.path.trim() ? normalizeWorkspacePath(args.path) : 'index.html';
+        const result = await platform.verifyBrowser(path, context.signal);
+        const summary = result.results.map(view => {
+          const row = view as Record<string, unknown>;
+          return [
+            String(row.viewport || 'viewport'),
+            'title: ' + String(row.title || '(no title)'),
+            'horizontal overflow: ' + String(row.horizontalOverflow),
+            'console errors: ' + String(Array.isArray(row.consoleErrors) ? row.consoleErrors.length : 0),
+            'page errors: ' + String(Array.isArray(row.pageErrors) ? row.pageErrors.length : 0),
+          ].join(' | ');
+        }).join('\\n');
+        return result.passed
+          ? success('Offline browser verification completed.\\n' + summary, result)
+          : { ok: false, output: 'Browser verification found issues.\\n' + summary, data: result, error: 'Review browser verification results and repair the project.' };
+      } catch (error) { return failure(error); }
+    },
+  };
+
   const runCommand: AgentToolDefinition = {
     name: 'run_command',
     description: 'Run an allowlisted project command without a shell, such as npm run build, npm test, git status, or rg TODO. Commands that change dependencies or repository state require approval.',
@@ -245,7 +275,7 @@ export function createWorkspaceTools(platform: AgentPlatform): AgentToolDefiniti
     },
   };
 
-  return [listFiles, inspectProject, readFile, searchFiles, writeFile, writeFiles, deleteFile, runCommand];
+  return [listFiles, inspectProject, readFile, searchFiles, writeFile, writeFiles, deleteFile, verifyBrowser, runCommand];
 }
 
 export function toolDefinitions(tools: AgentToolDefinition[]) {
