@@ -38,6 +38,16 @@ function parseAction(raw: string): ActionResponse {
         summary: typeof value.summary === 'string' ? value.summary.slice(0, 500) : undefined,
       };
     }
+    // Compatibility path: some model routes ignore the agent action schema and
+    // still return the previous complete-files JSON contract.
+    if (Array.isArray(value.files) && value.files.length) {
+      return {
+        type: 'tool',
+        tool: 'write_files',
+        arguments: { files: value.files },
+        thought: typeof value.summary === 'string' ? value.summary.slice(0, 1200) : 'Applying generated project files.',
+      };
+    }
   } catch {
     const start = cleaned.indexOf('{');
     const end = cleaned.lastIndexOf('}');
