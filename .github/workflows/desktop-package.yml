@@ -37,6 +37,14 @@ jobs:
           }
           $largest = ($files | Measure-Object -Property Length -Maximum).Maximum
           Write-Host "Largest desktop artifact: $([math]::Round($largest / 1MB, 2)) MB"
+          $unpackedPath = Join-Path release "win-unpacked"
+          if (Test-Path $unpackedPath) {
+            $unpacked = Get-ChildItem $unpackedPath -File -Recurse
+            $installedBytes = ($unpacked | Measure-Object -Property Length -Sum).Sum
+            Write-Host "Unpacked installed app: $([math]::Round($installedBytes / 1MB, 2)) MB ($installedBytes bytes)"
+          } else {
+            Write-Warning "win-unpacked directory was not produced; installed size was not measured."
+          }
       - name: Upload Windows desktop artifacts
         uses: actions/upload-artifact@v4
         with:
