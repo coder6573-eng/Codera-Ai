@@ -95,7 +95,8 @@ test('failed preview audits are sent to the repair engine and retested', async (
   await page.getByRole('group', { name: 'AI mode' }).getByRole('button', { name: 'Build' }).click();
   await page.locator('.prompt-card textarea').fill('Build a simple landing page');
   await page.getByRole('button', { name: /Build project/ }).click();
-  await expect.poll(() => agentTurns).toBe(2);\n  await expect.poll(() => requests).toBe(1);
+  await expect.poll(() => agentTurns).toBe(2);
+  await expect.poll(() => requests).toBe(1);
   await expect(page.getByText('Preview checks passed · ready to review')).toBeVisible();
   await expect(page.getByText('Responsive viewport')).toBeVisible();
   await expect(page.getByText(/0 failures/)).toBeVisible();
@@ -157,7 +158,8 @@ test('project builds create restorable version-history checkpoints', async ({ pa
   await page.getByRole('group', { name: 'AI mode' }).getByRole('button', { name: 'Build' }).click();
   await page.locator('.prompt-card textarea').fill('Build a clean responsive landing page');
   await page.getByRole('button', { name: /Build project/ }).click();
-  await expect.poll(() => agentTurns).toBe(2);\n  await expect(page.getByText('Agent completed · 2 steps · 1 tool calls')).toBeVisible();
+  await expect.poll(() => agentTurns).toBe(2);
+  await expect(page.getByText('Agent completed · 2 steps · 1 tool calls')).toBeVisible();
   await page.getByRole('button', { name: /Version history/ }).click();
   await expect(page.getByText('Before build')).toBeVisible();
   await page.locator('.version-menu button').first().click();
