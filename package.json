@@ -11,7 +11,8 @@
     "test:e2e": "playwright test",
     "desktop:dist": "npm run build && npm run prepare:desktop-browser && electron-builder --win portable nsis --x64",
     "android:sync": "npm run build && cap sync android",
-    "prepare:desktop-browser": "node scripts/prepare-desktop-browser.cjs"
+    "prepare:desktop-browser": "node scripts/prepare-desktop-browser.cjs",
+    "test:desktop-runtime": "node --test tests/desktop/*.test.cjs"
   },
   "dependencies": {
     "@vitejs/plugin-react": "latest",
