@@ -2,7 +2,6 @@ import { Capacitor, CapacitorHttp } from '@capacitor/core';
 
 type Mode = 'plan' | 'build';
 type FileItem = { path: string; content: string };
-declare global { interface Window { coderaDesktop?: { complete: (payload: Record<string, unknown>) => Promise<unknown> } } }
 
 const GATEWAY = 'https://ai-gateway.kilo.ai/api/v1/chat/completions';
 const parseContent = (raw: string): Record<string, unknown> => {
