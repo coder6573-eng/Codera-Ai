@@ -7,7 +7,6 @@
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
-const BUNDLED_NODE = require.resolve('node');
 function findPackageRoot(entry, marker) {
   let cursor = path.dirname(entry);
   while (cursor && cursor !== path.dirname(cursor)) {
@@ -16,7 +15,6 @@ function findPackageRoot(entry, marker) {
   }
   throw new Error('Bundled npm runtime is missing: ' + marker);
 }
-const NPM_ROOT = findPackageRoot(require.resolve('npm'), 'npm-cli.js');
 
 const MAX_FILE_BYTES = 500_000;
 const MAX_FILES = 250;
@@ -82,8 +80,16 @@ function cappedCollector() {
   };
 }
 
-function createNativeAgentService(userDataPath) {
+function createNativeAgentService(userDataPath, appOptions = {}) {
   const root = path.join(userDataPath, 'codera-agent-workspaces');
+  const nodeEntry = require.resolve('node');
+  const npmRootInPackage = findPackageRoot(require.resolve('npm'), 'npm-cli.js');
+  const unpackedPath = value => {
+    if (!appOptions.isPackaged || !appOptions.appPath || !appOptions.resourcesPath) return value;
+    return path.join(appOptions.resourcesPath, 'app.asar.unpacked', path.relative(appOptions.appPath, value));
+  };
+  const BUNDLED_NODE = unpackedPath(nodeEntry);
+  const NPM_ROOT = unpackedPath(npmRootInPackage);
 
   async function projectRoot(projectId) {
     const target = path.join(root, projectKey(projectId));
