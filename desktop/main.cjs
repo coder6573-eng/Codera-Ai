@@ -50,7 +50,7 @@ ipcMain.handle('codera:agent:search', async (event, payload) => {
   assertTrustedFrame(event);
   return agentService.searchFiles(payload || {});
 });
-ipcMain.handle('codera:agent:command', async (event, payload) => {
+ipcMain.handle('codera:agent:verify-browser', async (event, payload) => {\n  assertTrustedFrame(event);\n  return agentService.verifyBrowser(payload || {});\n});\nipcMain.handle('codera:agent:command', async (event, payload) => {
   assertTrustedFrame(event);
   return agentService.runCommand(payload || {});
 });
