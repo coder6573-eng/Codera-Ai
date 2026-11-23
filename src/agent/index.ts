@@ -1,6 +1,7 @@
 import { KiloAgentProvider } from './kiloProvider';
 import { createAgentPlatformSession } from './platform';
 import { CoderaAgentRuntime } from './runtime';
+import { createWorkspaceTools } from './tools';
 import type { AgentEvent, AgentFile, AgentMode, AgentRunOptions, AgentRunResult } from './types';
 
 export interface CoderaAgentTask {
@@ -28,7 +29,7 @@ export interface CoderaAgentTaskResult {
  */
 export async function runCoderaAgentTask(task: CoderaAgentTask): Promise<CoderaAgentTaskResult> {
   const session = await createAgentPlatformSession(task.projectId, task.files);
-  const tools = (await import('./tools')).createWorkspaceTools(session.platform);
+  const tools = createWorkspaceTools(session.platform);
   const provider = new KiloAgentProvider(tools);
   const runtime = new CoderaAgentRuntime(provider, session.platform);
   const run = await runtime.run({
