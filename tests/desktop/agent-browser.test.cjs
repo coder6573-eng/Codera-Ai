@@ -38,3 +38,32 @@ test('desktop agent verifies a project at desktop and mobile viewport sizes', as
     await fs.rm(userData, { recursive: true, force: true });
   }
 });
+
+test('native workspace rejects symlink paths during writes, sync, and command execution', async () => {
+  const userData = await fs.mkdtemp(path.join(os.tmpdir(), 'codera-symlink-check-'));
+  const outside = await fs.mkdtemp(path.join(os.tmpdir(), 'codera-outside-'));
+  const service = createNativeAgentService(userData);
+  try {
+    const workspace = await service.syncProject({
+      projectId: 'symlink-test',
+      files: [{ path: 'index.html', content: '<main>safe</main>' }]
+    });
+    await fs.symlink(outside, path.join(workspace.root, 'escape'), 'dir');
+    await assert.rejects(
+      service.writeFile({ projectId: 'symlink-test', path: 'escape/owned.txt', content: 'blocked' }),
+      /Symbolic links are not accessible/
+    );
+    await assert.rejects(
+      service.syncProject({ projectId: 'symlink-test', files: [{ path: 'escape/owned.txt', content: 'blocked' }] }),
+      /Symbolic links are not accessible/
+    );
+    await assert.rejects(
+      service.runCommand({ projectId: 'symlink-test', executable: 'node', args: ['--version'], cwd: 'escape', approved: false }),
+      /Symbolic links are not accessible/
+    );
+    assert.equal(await fs.readdir(outside).then(entries => entries.length), 0);
+  } finally {
+    await fs.rm(userData, { recursive: true, force: true });
+    await fs.rm(outside, { recursive: true, force: true });
+  }
+});
