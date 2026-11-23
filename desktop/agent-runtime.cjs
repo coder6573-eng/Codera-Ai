@@ -208,7 +208,8 @@ function createNativeAgentService(userDataPath, appOptions = {}) {
     if (path.extname(target).toLowerCase() !== '.html') throw new Error('Browser verification requires an HTML entry file.');
     const stat = await fs.stat(target);
     if (!stat.isFile() || stat.size > MAX_FILE_BYTES) throw new Error('The HTML entry file is missing or too large.');
-    const browserPath = appOptions.isPackaged ? path.join(appOptions.resourcesPath, 'playwright-browsers') : process.env.PLAYWRIGHT_BROWSERS_PATH;\n    if (browserPath) process.env.PLAYWRIGHT_BROWSERS_PATH = browserPath;
+    const browserPath = appOptions.isPackaged ? path.join(appOptions.resourcesPath, 'playwright-browsers') : process.env.PLAYWRIGHT_BROWSERS_PATH;
+    if (browserPath) process.env.PLAYWRIGHT_BROWSERS_PATH = browserPath;
     const { chromium } = require('playwright');
     const browser = await chromium.launch({ headless: true });
     const results = [];
