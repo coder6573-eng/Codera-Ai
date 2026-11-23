@@ -85,7 +85,7 @@ const COMMAND_RULES: Record<string, { approval: boolean; blockedArgs?: RegExp[] 
   npx: { approval: true },
   pnpm: { approval: true },
   yarn: { approval: true },
-  git: { approval: false, blockedArgs: [/^push$/i, /^reset$/i, /^clean$/i, /^filter-repo$/i, /^credential$/i] },
+  git: { approval: false, blockedArgs: [/^push$/i, /^pull$/i, /^fetch$/i, /^clone$/i, /^remote$/i, /^submodule$/i, /^reset$/i, /^clean$/i, /^filter-repo$/i, /^credential$/i] },
   python: { approval: true, blockedArgs: [/^-c$/, /^-mhttp\.server$/i] },
   python3: { approval: true, blockedArgs: [/^-c$/, /^-mhttp\.server$/i] },
   pytest: { approval: false },
@@ -124,7 +124,7 @@ export function validateCommand(executableInput: unknown, argsInput: unknown): V
       throw new AgentSecurityError('This command option is blocked by the native execution policy.', 'COMMAND_OPTION_BLOCKED');
     }
     if (/^(?:\/|[a-zA-Z]:\\)/.test(arg)) {
-      throw new AgentSecurityError('Commands cannot reference absolute host paths.', 'HOST_PATH_BLOCKED');
+      throw new AgentSecurityError('Commands cannot reference absolute host paths or parent directories.', 'HOST_PATH_BLOCKED');
     }
   }
 
