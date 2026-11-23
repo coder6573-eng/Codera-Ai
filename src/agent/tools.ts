@@ -3,7 +3,9 @@ import type {
   AgentToolDefinition,
   AgentToolResult,
 } from './types';
-import { assertFileSize, assertWorkspaceFileCount, normalizeWorkspacePath, validateCommand } from './security';\nimport { searchOfflineGuides } from './knowledge';\nimport { getOfflineTemplate, listOfflineTemplates } from './templates';
+import { assertFileSize, assertWorkspaceFileCount, normalizeWorkspacePath, validateCommand } from './security';
+import { searchOfflineGuides } from './knowledge';
+import { getOfflineTemplate, listOfflineTemplates } from './templates';
 
 const objectArgs = (value: Record<string, unknown>, key: string): string => {
   const item = value[key];
