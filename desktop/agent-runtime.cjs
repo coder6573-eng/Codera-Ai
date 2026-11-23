@@ -217,7 +217,17 @@ function createNativeAgentService(userDataPath, appOptions = {}) {
         const page = await browser.newPage({ viewport: { width: viewport.width, height: viewport.height } });
         const consoleErrors = [];
         const pageErrors = [];
-        await page.route('**/*', async route => {\n          const requestUrl = route.request().url();\n          if (requestUrl.startsWith('data:') || requestUrl.startsWith('blob:')) return route.continue();\n          if (!requestUrl.startsWith('file://')) return route.abort('blockedbyclient');\n          try {\n            const requestedPath = path.resolve(fileURLToPath(requestUrl));\n            if (!inside(base, requestedPath)) return route.abort('blockedbyclient');\n            return route.continue();\n          } catch { return route.abort('blockedbyclient'); }\n        });\n        page.on('console', message => {
+        await page.route('**/*', async route => {
+          const requestUrl = route.request().url();
+          if (requestUrl.startsWith('data:') || requestUrl.startsWith('blob:')) return route.continue();
+          if (!requestUrl.startsWith('file://')) return route.abort('blockedbyclient');
+          try {
+            const requestedPath = path.resolve(fileURLToPath(requestUrl));
+            if (!inside(base, requestedPath)) return route.abort('blockedbyclient');
+            return route.continue();
+          } catch { return route.abort('blockedbyclient'); }
+        });
+        page.on('console', message => {
           if (message.type() === 'error') consoleErrors.push(message.text().slice(0, 500));
         });
         page.on('pageerror', error => pageErrors.push(error.message.slice(0, 500)));
