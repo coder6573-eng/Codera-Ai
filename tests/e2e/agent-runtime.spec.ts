@@ -36,7 +36,7 @@ function scriptedProvider(turns: AgentTurn[]): AgentProvider {
   return {
     id: 'test-provider',
     label: 'Test provider',
-    async complete(_input: { mode: AgentMode }) {
+    async complete() {
       const next = turns.shift();
       if (!next) throw new Error('No scripted agent turn remains.');
       return next;
