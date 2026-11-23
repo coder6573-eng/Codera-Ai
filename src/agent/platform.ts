@@ -10,7 +10,7 @@ export interface NativeAgentBridge {
   writeFile(payload: { projectId: string; path: string; content: string }): Promise<unknown>;
   deleteFile(payload: { projectId: string; path: string }): Promise<unknown>;
   searchFiles(payload: { projectId: string; query: string }): Promise<Array<{ path: string; line: number; text: string }>>;
-  runCommand(payload: { projectId: string; executable: string; args: string[]; cwd: string; approved: boolean }): Promise<{ code: number; stdout: string; stderr: string }>;
+  runCommand(payload: { projectId: string; executable: string; args: string[]; cwd: string; approved: boolean }): Promise<{ code: number; stdout: string; stderr: string }>;\n  verifyBrowser(payload: { projectId: string; path: string }): Promise<{ browser: string; entry: string; passed: boolean; results: Array<Record<string, unknown>> }>;
 }
 
 declare global {
