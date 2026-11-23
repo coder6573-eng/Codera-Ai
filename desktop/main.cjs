@@ -3,7 +3,7 @@ const path = require('node:path');
 const { createNativeAgentService } = require('./agent-runtime.cjs');
 
 const GATEWAY = 'https://ai-gateway.kilo.ai/api/v1/chat/completions';
-const agentService = createNativeAgentService(app.getPath('userData'));
+const agentService = createNativeAgentService(app.getPath('userData'), { appPath: app.getAppPath(), resourcesPath: process.resourcesPath, isPackaged: app.isPackaged });
 const assertTrustedFrame = (event) => {
   const url = event.senderFrame && event.senderFrame.url;
   if (typeof url !== 'string' || !url.startsWith('file://')) throw new Error('Untrusted renderer origin.');
