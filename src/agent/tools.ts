@@ -146,11 +146,12 @@ export function createWorkspaceTools(platform: AgentPlatform): AgentToolDefiniti
       try {
         if (!platform.runCommand) return failure('Terminal execution is unavailable on this platform. Use Preview and Diagnostics instead.');
         const command = validateCommand(args.executable, args.args);
+        let approved = false;
         if (command.requiresApproval) {
-          const approved = await context.requestApproval?.(command.executable + ' ' + command.args.join(' '), args);
+          approved = (await context.requestApproval?.(command.executable + ' ' + command.args.join(' '), args)) === true;
           if (!approved) return failure('Command was not approved by the user.');
         }
-        const result = await platform.runCommand(command.executable, command.args, '.', context.signal);
+        const result = await platform.runCommand(command.executable, command.args, '.', context.signal, approved);
         const output = [
           '$ ' + command.executable + ' ' + command.args.join(' '),
           'exit code: ' + result.code,
