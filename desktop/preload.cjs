@@ -9,6 +9,6 @@ contextBridge.exposeInMainWorld('coderaDesktop', Object.freeze({
     writeFile: (payload) => ipcRenderer.invoke('codera:agent:write', payload),
     deleteFile: (payload) => ipcRenderer.invoke('codera:agent:delete', payload),
     searchFiles: (payload) => ipcRenderer.invoke('codera:agent:search', payload),
-    runCommand: (payload) => ipcRenderer.invoke('codera:agent:command', payload)
+    runCommand: (payload) => ipcRenderer.invoke('codera:agent:command', payload),\n    verifyBrowser: (payload) => ipcRenderer.invoke('codera:agent:verify-browser', payload)
   })
 }));
