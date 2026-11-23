@@ -90,6 +90,7 @@ export interface AgentToolDefinition {
 }
 
 export interface AgentToolContext {
+  runId: string;
   workspace: AgentWorkspace;
   signal: AbortSignal;
   emit: (event: AgentEvent) => void;
@@ -151,7 +152,7 @@ export interface AgentPlatform {
   writeFile(path: string, content: string, signal: AbortSignal): Promise<void>;
   deleteFile(path: string, signal: AbortSignal): Promise<void>;
   listFiles(signal: AbortSignal): Promise<string[]>;
-  runCommand?(command: string, args: string[], cwd: string, signal: AbortSignal): Promise<{ code: number; stdout: string; stderr: string }>;
+  runCommand?(command: string, args: string[], cwd: string, signal: AbortSignal, approved?: boolean): Promise<{ code: number; stdout: string; stderr: string }>;
   searchFiles?(query: string, signal: AbortSignal): Promise<Array<{ path: string; line: number; text: string }>>;
 }
 
