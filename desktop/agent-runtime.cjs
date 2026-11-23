@@ -20,7 +20,7 @@ const COMMANDS = new Set([
   'cat', 'head', 'tail', 'wc', 'find'
 ]);
 
-const BLOCKED_OPTIONS = new Set(['-e', '--eval', '--require', 'push', 'reset', 'clean', 'publish', 'login', 'logout', 'token', '-delete', '-exec', '-execdir']);
+const BLOCKED_OPTIONS = new Set(['-e', '--eval', '--require', 'push', 'pull', 'fetch', 'clone', 'remote', 'submodule', 'reset', 'clean', 'publish', 'login', 'logout', 'token', '-delete', '-exec', '-execdir']);
 
 function projectKey(value) {
   if (typeof value !== 'string' || !/^[a-zA-Z0-9_-]{1,80}$/.test(value)) {
