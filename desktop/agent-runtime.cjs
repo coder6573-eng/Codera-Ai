@@ -84,13 +84,13 @@ function cappedCollector() {
 function createNativeAgentService(userDataPath, appOptions = {}) {
   const root = path.join(userDataPath, 'codera-agent-workspaces');
   const npmRootInPackage = findPackageRoot(require.resolve('npm'), 'npm-cli.js');
-  const nodeEntry = path.join(path.dirname(npmRootInPackage), 'node', 'bin', process.platform === 'win32' ? 'node.exe' : 'node');
-  if (!require('node:fs').existsSync(nodeEntry)) throw new Error('Bundled Node.js runtime is missing: ' + nodeEntry);
+  const nodeEntryInPackage = path.join(path.dirname(npmRootInPackage), 'node', 'bin', process.platform === 'win32' ? 'node.exe' : 'node');
   const unpackedPath = value => {
     if (!appOptions.isPackaged || !appOptions.appPath || !appOptions.resourcesPath) return value;
     return path.join(appOptions.resourcesPath, 'app.asar.unpacked', path.relative(appOptions.appPath, value));
   };
-  const BUNDLED_NODE = unpackedPath(nodeEntry);
+  const BUNDLED_NODE = unpackedPath(nodeEntryInPackage);
+  if (!require('node:fs').existsSync(BUNDLED_NODE)) throw new Error('Bundled Node.js runtime is missing: ' + BUNDLED_NODE);
   const NPM_ROOT = unpackedPath(npmRootInPackage);
 
   async function projectRoot(projectId) {
