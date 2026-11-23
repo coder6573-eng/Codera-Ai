@@ -56,11 +56,11 @@ ipcMain.handle('codera:agent:command', async (event, payload) => {
 });
 
 ipcMain.handle('codera:kilo', async (_event, payload) => {
-  if (!payload || payload.model !== 'kilo-auto/free' || !Array.isArray(payload.messages) || payload.messages.length > 8) {
+  if (!payload || payload.model !== 'kilo-auto/free' || !Array.isArray(payload.messages) || payload.messages.length > 40) {
     throw new Error('Invalid AI request.');
   }
   const size = JSON.stringify(payload).length;
-  if (size > 1800000) throw new Error('The AI request is too large.');
+  if (size > 1500000) throw new Error('The AI request is too large.');
   const response = await fetch(GATEWAY, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-kilocode-mode': payload.temperature === 0.25 ? 'plan' : 'code' },
