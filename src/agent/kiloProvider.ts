@@ -76,12 +76,16 @@ function buildSystemPrompt(mode: AgentMode, tools: AgentToolDefinition[]): strin
 }
 
 function mapMessages(messages: AgentMessage[]) {
-  return messages.map(message => ({
-    role: message.role,
-    content: message.content,
-    ...(message.name ? { name: message.name } : {}),
-    ...(message.toolCallId ? { tool_call_id: message.toolCallId } : {}),
-  }));
+  return messages.map(message => message.role === 'tool'
+    ? {
+        role: 'user',
+        content: '[Tool result from ' + (message.name || 'agent tool') + ']\\n' + message.content,
+      }
+    : {
+        role: message.role,
+        content: message.content,
+        ...(message.name ? { name: message.name } : {}),
+      });
 }
 
 export class KiloAgentProvider implements AgentProvider {
