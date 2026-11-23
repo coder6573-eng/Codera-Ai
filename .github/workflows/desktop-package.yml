@@ -1,0 +1,44 @@
+name: Desktop package size and smoke build
+on:
+  pull_request:
+    paths:
+      - 'package.json'
+      - 'desktop/**'
+      - 'scripts/**'
+      - 'src/agent/**'
+      - '.github/workflows/desktop-package.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  windows-package:
+    runs-on: windows-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm install
+      - name: Build desktop app with offline Chromium
+        run: npm run desktop:dist
+      - name: Report package sizes
+        shell: pwsh
+        run: |
+          $files = Get-ChildItem release -File
+          if (-not $files) { throw "No desktop artifacts were produced." }
+          foreach ($file in $files) {
+            $mb = [math]::Round($file.Length / 1MB, 2)
+            Write-Host "$($file.Name): $mb MB ($($file.Length) bytes)"
+          }
+          $largest = ($files | Measure-Object -Property Length -Maximum).Maximum
+          Write-Host "Largest desktop artifact: $([math]::Round($largest / 1MB, 2)) MB"
+      - name: Upload Windows desktop artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: codera-windows-desktop
+          path: release/*
+          if-no-files-found: error
+          retention-days: 7
