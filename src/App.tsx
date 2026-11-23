@@ -82,7 +82,7 @@ export default function App() {
   const [workspaces, setWorkspaces] = useState<Workspace[]>(load);
   const [workspaceId, setWorkspaceId] = useState('');
   const [projectId, setProjectId] = useState('');
-  const isPhone = typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches;
+  const [isPhone, setIsPhone] = useState(() => typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches);
   const [screen, setScreen] = useState<'home' | 'projects' | 'settings' | 'builder'>('home');
   const [activeView, setActiveView] = useState<'chat' | 'preview' | 'code' | 'plan' | 'issues' | 'history'>(isPhone ? 'chat' : 'preview');
   const [mode, setMode] = useState<'plan' | 'build'>(() => {
@@ -129,6 +129,20 @@ export default function App() {
   const [autoTestRepairEnabled, setAutoTestRepairEnabled] = useState(false);
   const autoRepairCount = useRef(0);
   const previewFrame = useRef<HTMLIFrameElement>(null);
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 767px)');
+    const updateViewport = () => setIsPhone(media.matches);
+    updateViewport();
+    if (media.addEventListener) {
+      media.addEventListener('change', updateViewport);
+      return () => media.removeEventListener('change', updateViewport);
+    }
+    media.addListener(updateViewport);
+    return () => media.removeListener(updateViewport);
+  }, []);
+  useEffect(() => {
+    if (screen === 'builder') setActiveView(isPhone ? 'chat' : 'preview');
+  }, [isPhone, screen]);
   useEffect(() => { try { localStorage.setItem('codera-workspaces-v1', JSON.stringify(workspaces)); } catch { /* Keep the current session usable if storage is full or unavailable. */ } }, [workspaces]);
   useEffect(() => { try { localStorage.setItem('codera.ui.mode', mode); } catch { /* Preference is optional. */ } }, [mode]);
   useEffect(() => {

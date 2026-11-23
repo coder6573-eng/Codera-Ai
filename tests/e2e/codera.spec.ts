@@ -193,3 +193,15 @@ test('starter website is visibly rendered inside the live preview iframe', async
   await expect(previewFrame.getByText('YOUR CANVAS IS READY')).toBeVisible();
   await expect(previewFrame.locator('body')).toHaveCSS('background-color', 'rgb(12, 16, 32)');
 });
+
+test('builder navigation adapts when resizing between desktop and phone widths', async ({ page }) => {
+  await openApp(page);
+  const mobileNav = page.getByRole('navigation', { name: 'Project navigation' });
+  await page.setViewportSize({ width: 375, height: 820 });
+  await expect(mobileNav.getByRole('button', { name: 'Chat' })).toHaveClass(/active/);
+  await mobileNav.getByRole('button', { name: 'Code' }).click();
+  await expect(mobileNav.getByRole('button', { name: 'Code' })).toHaveClass(/active/);
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const desktopTabs = page.getByRole('tablist', { name: 'Project workspace' });
+  await expect(desktopTabs.getByRole('tab', { name: /Preview/ })).toHaveAttribute('aria-selected', 'true');
+});
