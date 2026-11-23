@@ -81,10 +81,26 @@ function createNativeAgentService(userDataPath) {
     return target;
   }
 
+  async function assertNoSymlinkPath(base, target) {
+    const relative = path.relative(base, target);
+    let cursor = base;
+    for (const segment of relative.split(path.sep).filter(Boolean)) {
+      cursor = path.join(cursor, segment);
+      try {
+        const stat = await fs.lstat(cursor);
+        if (stat.isSymbolicLink()) throw new Error('Symbolic links are not accessible to the agent.');
+      } catch (error) {
+        if (error && error.code === 'ENOENT') continue;
+        throw error;
+      }
+    }
+  }
+
   async function resolveFile(projectId, input) {
     const base = await projectRoot(projectId);
     const target = path.resolve(base, relativePath(input));
     if (!inside(base, target)) throw new Error('Project path escaped its workspace.');
+    await assertNoSymlinkPath(base, target);
     return { base, target };
   }
 
@@ -182,7 +198,21 @@ function createNativeAgentService(userDataPath) {
       const collector = cappedCollector();
       const windows = process.platform === 'win32';
       const command = windows ? executable + (['npm', 'npx', 'pnpm', 'yarn'].includes(executable) ? '.cmd' : '.exe') : executable;
-      const child = spawn(command, payload.args, {
+      const windowsCommand = [command, ...payload.args].map(value => '"' + String(value).replace(/"/g, '""') + '"').join(' ');
+      const child = windows
+        ? spawn(process.env.ComSpec || 'cmd.exe', ['/d', '/s', '/c', windowsCommand], {
+          cwd, shell: false, windowsHide: true,
+          env: {
+            PATH: process.env.PATH || '',
+            HOME: process.env.HOME || userDataPath,
+            USERPROFILE: process.env.USERPROFILE || userDataPath,
+            TMP: process.env.TMP || userDataPath,
+            TEMP: process.env.TEMP || userDataPath,
+            CI: '1', NO_COLOR: '1'
+          },
+          stdio: ['ignore', 'pipe', 'pipe']
+        })
+        : spawn(command, payload.args, {
         cwd,
         shell: false,
         windowsHide: true,
