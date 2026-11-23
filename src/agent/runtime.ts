@@ -49,10 +49,10 @@ export class CoderaAgentRuntime {
 
   constructor(
     private readonly provider: AgentProvider,
-    platform: AgentPlatform,
+    private readonly platform: AgentPlatform,
     extraTools: AgentToolDefinition[] = [],
   ) {
-    this.tools = [...createWorkspaceTools(platform), ...extraTools];
+    this.tools = [...createWorkspaceTools(this.platform), ...extraTools];
     this.toolMap = new Map(this.tools.map(tool => [tool.name, tool]));
   }
 
