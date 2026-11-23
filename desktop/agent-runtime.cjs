@@ -208,10 +208,7 @@ function createNativeAgentService(userDataPath, appOptions = {}) {
     if (path.extname(target).toLowerCase() !== '.html') throw new Error('Browser verification requires an HTML entry file.');
     const stat = await fs.stat(target);
     if (!stat.isFile() || stat.size > MAX_FILE_BYTES) throw new Error('The HTML entry file is missing or too large.');
-    const browserPath = appOptions.isPackaged
-      ? path.join(appOptions.resourcesPath, 'playwright-browsers')
-      : (process.env.PLAYWRIGHT_BROWSERS_PATH || path.join(process.cwd(), '.codera-browser-cache'));
-    process.env.PLAYWRIGHT_BROWSERS_PATH = browserPath;
+    const browserPath = appOptions.isPackaged ? path.join(appOptions.resourcesPath, 'playwright-browsers') : process.env.PLAYWRIGHT_BROWSERS_PATH;\n    if (browserPath) process.env.PLAYWRIGHT_BROWSERS_PATH = browserPath;
     const { chromium } = require('playwright');
     const browser = await chromium.launch({ headless: true });
     const results = [];
@@ -220,7 +217,7 @@ function createNativeAgentService(userDataPath, appOptions = {}) {
         const page = await browser.newPage({ viewport: { width: viewport.width, height: viewport.height } });
         const consoleErrors = [];
         const pageErrors = [];
-        page.on('console', message => {
+        await page.route('**/*', async route => {\n          const requestUrl = route.request().url();\n          if (requestUrl.startsWith('data:') || requestUrl.startsWith('blob:')) return route.continue();\n          if (!requestUrl.startsWith('file://')) return route.abort('blockedbyclient');\n          try {\n            const requestedPath = path.resolve(fileURLToPath(requestUrl));\n            if (!inside(base, requestedPath)) return route.abort('blockedbyclient');\n            return route.continue();\n          } catch { return route.abort('blockedbyclient'); }\n        });\n        page.on('console', message => {
           if (message.type() === 'error') consoleErrors.push(message.text().slice(0, 500));
         });
         page.on('pageerror', error => pageErrors.push(error.message.slice(0, 500)));
