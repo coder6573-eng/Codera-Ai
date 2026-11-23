@@ -148,7 +148,9 @@ function createNativeAgentService(userDataPath, appOptions = {}) {
       written.add(relative);
       const target = path.resolve(base, relative);
       if (!inside(base, target)) throw new Error('Project path escaped its workspace.');
+      await assertNoSymlinkPath(base, target);
       await fs.mkdir(path.dirname(target), { recursive: true });
+      await assertNoSymlinkPath(base, target);
       await fs.writeFile(target, item.content, 'utf8');
     }
     return { root: base, files: written.size };
@@ -270,7 +272,9 @@ function createNativeAgentService(userDataPath, appOptions = {}) {
     const cwdInput = payload.cwd ? relativePath(payload.cwd) : '.';
     const cwd = path.resolve(base, cwdInput);
     if (!inside(base, cwd)) throw new Error('Command working directory escaped the project.');
+    await assertNoSymlinkPath(base, cwd);
     await fs.mkdir(cwd, { recursive: true });
+    await assertNoSymlinkPath(base, cwd);
 
     return new Promise((resolve, reject) => {
       const collector = cappedCollector();
