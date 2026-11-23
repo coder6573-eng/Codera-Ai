@@ -59,6 +59,10 @@
     "publish": null,
     "nsis": {
       "artifactName": "Codera-AI-${version}-${arch}-setup.${ext}"
-    }
+    },
+    "asarUnpack": [
+      "node_modules/node/bin/**",
+      "node_modules/npm/**"
+    ]
   }
 }
