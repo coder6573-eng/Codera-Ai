@@ -145,7 +145,7 @@ export async function createAgentPlatformSession(
         for (const path of paths) {
           const result = await Filesystem.readFile({ path: fullPath(path), directory: Directory.Data, encoding: Encoding.UTF8 });
           const content = typeof result.data === 'string' ? result.data : '';
-          content.split(/\\r?\\n/).forEach((line, index) => {
+          content.split(/\r?\n/).forEach((line, index) => {
             if (line.toLowerCase().includes(query.toLowerCase()) && matches.length < 200) {
               matches.push({ path, line: index + 1, text: line.slice(0, 500) });
             }
