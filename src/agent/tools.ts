@@ -3,7 +3,7 @@ import type {
   AgentToolDefinition,
   AgentToolResult,
 } from './types';
-import { assertFileSize, assertWorkspaceFileCount, normalizeWorkspacePath, validateCommand } from './security';
+import { assertFileSize, assertWorkspaceFileCount, normalizeWorkspacePath, validateCommand } from './security';\nimport { searchOfflineGuides } from './knowledge';
 
 const objectArgs = (value: Record<string, unknown>, key: string): string => {
   const item = value[key];
@@ -189,6 +189,24 @@ export function createWorkspaceTools(platform: AgentPlatform): AgentToolDefiniti
     },
   };
 
+  const searchReference: AgentToolDefinition = {
+    name: 'search_offline_reference',
+    description: 'Search Codera’s built-in offline web-development guides for practical HTML, CSS, JavaScript, React, TypeScript, accessibility, security, debugging, performance, testing, and PWA guidance.',
+    inputSchema: {
+      type: 'object',
+      properties: { query: { type: 'string', minLength: 2, maxLength: 200 } },
+      required: ['query'],
+      additionalProperties: false,
+    },
+    async execute(args) {
+      try {
+        const query = objectArgs(args, 'query').slice(0, 200);
+        const results = searchOfflineGuides(query, 5);
+        return success(results.map((item, index) => (index + 1) + '. ' + item.title + '\\n' + item.excerpt).join('\\n\\n') || 'No matching offline guide was found.', { results });
+      } catch (error) { return failure(error); }
+    },
+  };
+
   const verifyBrowser: AgentToolDefinition = {
     name: 'verify_browser',
     description: 'Open the project HTML in Codera’s bundled offline Chromium browser at desktop and mobile viewport sizes. Report page errors, console errors, missing images, and horizontal overflow. Available in the desktop app.',
@@ -275,7 +293,7 @@ export function createWorkspaceTools(platform: AgentPlatform): AgentToolDefiniti
     },
   };
 
-  return [listFiles, inspectProject, readFile, searchFiles, writeFile, writeFiles, deleteFile, verifyBrowser, runCommand];
+  return [listFiles, inspectProject, readFile, searchFiles, searchReference, writeFile, writeFiles, deleteFile, verifyBrowser, runCommand];
 }
 
 export function toolDefinitions(tools: AgentToolDefinition[]) {
