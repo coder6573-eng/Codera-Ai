@@ -79,7 +79,7 @@ export function createWorkspaceTools(platform: AgentPlatform): AgentToolDefiniti
         await platform.writeFile(path, args.content, context.signal);
         context.emit({
           id: 'file_' + Date.now().toString(36),
-          runId: 'tool',
+          runId: context.runId,
           kind: 'file_changed',
           timestamp: Date.now(),
           step: 0,
