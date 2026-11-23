@@ -196,11 +196,12 @@ test('starter website is visibly rendered inside the live preview iframe', async
 
 test('builder navigation adapts when resizing between desktop and phone widths', async ({ page }) => {
   await openApp(page);
-  const nav = page.getByRole('navigation', { name: 'Project navigation' });
+  const mobileNav = page.getByRole('navigation', { name: 'Project navigation' });
   await page.setViewportSize({ width: 375, height: 820 });
-  await expect(nav.getByRole('button', { name: 'Chat' })).toHaveClass(/active/);
-  await nav.getByRole('button', { name: 'Code' }).click();
-  await expect(nav.getByRole('button', { name: 'Code' })).toHaveClass(/active/);
+  await expect(mobileNav.getByRole('button', { name: 'Chat' })).toHaveClass(/active/);
+  await mobileNav.getByRole('button', { name: 'Code' }).click();
+  await expect(mobileNav.getByRole('button', { name: 'Code' })).toHaveClass(/active/);
   await page.setViewportSize({ width: 1280, height: 900 });
-  await expect(nav.getByRole('button', { name: 'Preview' })).toHaveClass(/active/);
+  const desktopTabs = page.getByRole('tablist', { name: 'Project workspace' });
+  await expect(desktopTabs.getByRole('tab', { name: /Preview/ })).toHaveAttribute('aria-selected', 'true');
 });
