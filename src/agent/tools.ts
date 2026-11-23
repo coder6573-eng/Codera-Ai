@@ -3,7 +3,7 @@ import type {
   AgentToolDefinition,
   AgentToolResult,
 } from './types';
-import { assertFileSize, assertWorkspaceFileCount, normalizeWorkspacePath, validateCommand } from './security';\nimport { searchOfflineGuides } from './knowledge';
+import { assertFileSize, assertWorkspaceFileCount, normalizeWorkspacePath, validateCommand } from './security';\nimport { searchOfflineGuides } from './knowledge';\nimport { getOfflineTemplate, listOfflineTemplates } from './templates';
 
 const objectArgs = (value: Record<string, unknown>, key: string): string => {
   const item = value[key];
@@ -189,6 +189,35 @@ export function createWorkspaceTools(platform: AgentPlatform): AgentToolDefiniti
     },
   };
 
+  const listTemplates: AgentToolDefinition = {
+    name: 'list_starter_templates',
+    description: 'List Codera’s built-in offline project starters for responsive websites, accessible forms, dashboards, and offline PWAs.',
+    inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+    async execute() {
+      const templates = listOfflineTemplates();
+      return success(JSON.stringify(templates, null, 2), { templates });
+    },
+  };
+
+  const getTemplate: AgentToolDefinition = {
+    name: 'get_starter_template',
+    description: 'Retrieve the complete files for one built-in starter template. Use write_files to add the returned files to the active project, then customize them for the user.',
+    inputSchema: {
+      type: 'object',
+      properties: { id: { type: 'string', description: 'Template id returned by list_starter_templates' } },
+      required: ['id'],
+      additionalProperties: false,
+    },
+    async execute(args) {
+      try {
+        const id = objectArgs(args, 'id');
+        const template = getOfflineTemplate(id);
+        if (!template) return failure('Unknown starter template. Call list_starter_templates to see available ids.');
+        return success(JSON.stringify(template, null, 2), { template });
+      } catch (error) { return failure(error); }
+    },
+  };
+
   const searchReference: AgentToolDefinition = {
     name: 'search_offline_reference',
     description: 'Search Codera’s built-in offline web-development guides for practical HTML, CSS, JavaScript, React, TypeScript, accessibility, security, debugging, performance, testing, and PWA guidance.',
@@ -293,7 +322,7 @@ export function createWorkspaceTools(platform: AgentPlatform): AgentToolDefiniti
     },
   };
 
-  return [listFiles, inspectProject, readFile, searchFiles, searchReference, writeFile, writeFiles, deleteFile, verifyBrowser, runCommand];
+  return [listFiles, inspectProject, readFile, searchFiles, listTemplates, getTemplate, searchReference, writeFile, writeFiles, deleteFile, verifyBrowser, runCommand];
 }
 
 export function toolDefinitions(tools: AgentToolDefinition[]) {
