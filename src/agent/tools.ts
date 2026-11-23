@@ -91,6 +91,66 @@ export function createWorkspaceTools(platform: AgentPlatform): AgentToolDefiniti
     },
   };
 
+  const writeFiles: AgentToolDefinition = {
+    name: 'write_files',
+    description: 'Create or replace several project files in one atomic-looking batch. Use for a coherent multi-file implementation.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        files: {
+          type: 'array',
+          minItems: 1,
+          maxItems: 40,
+          items: {
+            type: 'object',
+            properties: { path: { type: 'string' }, content: { type: 'string' } },
+            required: ['path', 'content'],
+            additionalProperties: false,
+          },
+        },
+      },
+      required: ['files'],
+      additionalProperties: false,
+    },
+    async execute(args, context) {
+      try {
+        if (!Array.isArray(args.files) || args.files.length < 1 || args.files.length > 40) {
+          throw new Error('A write batch must contain between 1 and 40 files.');
+        }
+        const files = args.files.map(item => {
+          if (!item || typeof item !== 'object') throw new Error('Invalid file entry.');
+          const entry = item as Record<string, unknown>;
+          const path = normalizeWorkspacePath(entry.path);
+          if (typeof entry.content !== 'string') throw new Error('File content must be a string for ' + path + '.');
+          assertFileSize(entry.content);
+          return { path, content: entry.content };
+        });
+        const paths = await platform.listFiles(context.signal);
+        const newPaths = files.filter(file => !paths.includes(file.path));
+        if (paths.length + newPaths.length > 250) throw new Error('The workspace file limit would be exceeded.');
+        const totalBytes = files.reduce((total, file) => total + new TextEncoder().encode(file.content).byteLength, 0);
+        if (totalBytes > 5_000_000) throw new Error('A single write batch cannot exceed 5 MB.');
+        const changed: string[] = [];
+        for (const file of files) {
+          await platform.writeFile(file.path, file.content, context.signal);
+          changed.push(file.path);
+        }
+        for (const path of changed) {
+          context.emit({
+            id: 'file_' + Date.now().toString(36) + '_' + changed.indexOf(path),
+            runId: context.runId,
+            kind: 'file_changed',
+            timestamp: Date.now(),
+            step: 0,
+            message: 'Updated ' + path,
+            path,
+          });
+        }
+        return success('Updated ' + changed.length + ' files: ' + changed.join(', '), { count: changed.length }, changed);
+      } catch (error) { return failure(error); }
+    },
+  };
+
   const deleteFile: AgentToolDefinition = {
     name: 'delete_file',
     description: 'Delete a project file. This action always requires explicit user approval.',
@@ -186,7 +246,7 @@ export function createWorkspaceTools(platform: AgentPlatform): AgentToolDefiniti
     },
   };
 
-  return [listFiles, inspectProject, readFile, searchFiles, writeFile, deleteFile, runCommand];
+  return [listFiles, inspectProject, readFile, searchFiles, writeFile, writeFiles, deleteFile, runCommand];
 }
 
 export function toolDefinitions(tools: AgentToolDefinition[]) {
