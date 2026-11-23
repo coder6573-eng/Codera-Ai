@@ -56,7 +56,7 @@ function commandPolicy(executable, args, approved) {
   if (args.some(arg => /^(?:\/|[a-zA-Z]:\\)/.test(arg))) throw new Error('Host absolute paths are blocked.');
 
   const first = String(args[0] || '').toLowerCase();
-  const mutating = ['install', 'add', 'remove', 'update', 'upgrade', 'uninstall', 'commit', 'checkout', 'switch', 'merge', 'rebase', 'stash'].includes(first);
+  const mutating = ['install', 'add', 'remove', 'update', 'upgrade', 'uninstall', 'init', 'commit', 'checkout', 'switch', 'merge', 'rebase', 'stash', 'branch'].includes(first);
   if (mutating && !approved) throw new Error('This command requires explicit user approval.');
   return name;
 }
