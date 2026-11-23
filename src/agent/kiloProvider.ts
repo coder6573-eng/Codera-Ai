@@ -79,7 +79,7 @@ function mapMessages(messages: AgentMessage[]) {
   return messages.map(message => message.role === 'tool'
     ? {
         role: 'user',
-        content: '[Tool result from ' + (message.name || 'agent tool') + ']\\n' + message.content,
+        content: '[Tool result from ' + (message.name || 'agent tool') + ']\n' + message.content,
       }
     : {
         role: message.role,
