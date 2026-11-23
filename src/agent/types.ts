@@ -153,7 +153,7 @@ export interface AgentPlatform {
   deleteFile(path: string, signal: AbortSignal): Promise<void>;
   listFiles(signal: AbortSignal): Promise<string[]>;
   runCommand?(command: string, args: string[], cwd: string, signal: AbortSignal, approved?: boolean): Promise<{ code: number; stdout: string; stderr: string }>;
-  searchFiles?(query: string, signal: AbortSignal): Promise<Array<{ path: string; line: number; text: string }>>;
+  searchFiles?(query: string, signal: AbortSignal): Promise<Array<{ path: string; line: number; text: string }>>;\n  verifyBrowser?(path: string, signal: AbortSignal): Promise<{ browser: string; entry: string; passed: boolean; results: Array<Record<string, unknown>> }>;
 }
 
 export const AGENT_LIMITS = Object.freeze({
