@@ -50,7 +50,7 @@ export function normalizeWorkspacePath(input: unknown): string {
     if (!SAFE_SEGMENT.test(segment) || segment.endsWith('.') || segment.endsWith(' ')) {
       throw new AgentSecurityError('The file path contains unsupported characters.', 'INVALID_PATH');
     }
-    if (BLOCKED_SEGMENTS.has(segment.toLowerCase())) {
+    if (BLOCKED_SEGMENTS.has(segment.toLowerCase()) || /^\\.env(?:\\.|$)/i.test(segment)) {
       throw new AgentSecurityError('Access to protected or dependency directories is blocked.', 'PROTECTED_PATH');
     }
     normalized.push(segment);
@@ -129,7 +129,7 @@ export function validateCommand(executableInput: unknown, argsInput: unknown): V
   }
 
   const packageMutation = ['install', 'add', 'remove', 'update', 'upgrade', 'uninstall'].includes((args[0] || '').toLowerCase());
-  const gitMutation = executable === 'git' && ['commit', 'checkout', 'switch', 'merge', 'rebase', 'stash'].includes((args[0] || '').toLowerCase());
+  const gitMutation = executable === 'git' && ['init', 'add', 'commit', 'checkout', 'switch', 'merge', 'rebase', 'stash', 'branch'].includes((args[0] || '').toLowerCase());
   const requiresApproval = rule.approval || packageMutation || gitMutation;
 
   return {
