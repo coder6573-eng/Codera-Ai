@@ -62,9 +62,9 @@ export async function createAgentPlatformSession(
         signal.throwIfAborted();
         return native.searchFiles({ projectId, query });
       },
-      async runCommand(executable, args, cwd, signal) {
+      async runCommand(executable, args, cwd, signal, approved = false) {
         signal.throwIfAborted();
-        return native.runCommand({ projectId, executable, args, cwd, approved: false });
+        return native.runCommand({ projectId, executable, args, cwd, approved });
       },
     };
 
