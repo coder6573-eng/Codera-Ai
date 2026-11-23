@@ -1,6 +1,5 @@
 import type {
   AgentPlatform,
-  AgentToolContext,
   AgentToolDefinition,
   AgentToolResult,
 } from './types';
