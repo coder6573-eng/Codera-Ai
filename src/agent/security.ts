@@ -93,6 +93,7 @@ const COMMAND_RULES: Record<string, { approval: boolean; blockedArgs?: RegExp[] 
   vite: { approval: false },
   eslint: { approval: false },
   prettier: { approval: false },
+  biome: { approval: false },
   rg: { approval: false },
   ls: { approval: false },
   pwd: { approval: false },
