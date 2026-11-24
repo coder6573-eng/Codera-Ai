@@ -32,6 +32,8 @@ jobs:
         run: npm run typecheck
       - name: Production build
         run: npm run build
+      - name: Desktop runtime and offline browser regression tests
+        run: npm run test:desktop-runtime
       - name: Browser interaction tests
         run: npm run test:e2e
       - name: Upload Playwright report

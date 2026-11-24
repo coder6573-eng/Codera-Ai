@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, ArrowRight, Bot, Check, CheckCircle2, ChevronDown, ChevronRight, CircleAlert, Clock3, Code2, Download, Eye, FileCode2, FolderKanban, HardDrive, History as HistoryIcon, Home, LayoutGrid, List, MessageSquare, Monitor, Moon, MoreHorizontal, Pencil, Plus, RefreshCw, Search, Send, Settings, ShieldCheck, Smartphone, Sparkles, Sun, Tablet, Trash2, Wrench, X } from 'lucide-react';
 import { zipSync, strToU8 } from 'fflate';
 import { keylessAI } from './aiClient';
+import { runCoderaAgentTask } from './agent';
 
 const parseAIJson = <T,>(value: string): T => {
   return JSON.parse(value) as T;
@@ -56,19 +57,19 @@ const load = (): Workspace[] => {
 const planFor = (idea: string) => ['Define the structure and main user journey for ' + idea + '.', 'Build a responsive layout with a clear visual hierarchy and accessible interactions.', 'Implement the styling, content, and functional client-side behaviour.', 'Check mobile and desktop layouts, then refine the result.'];
 const validateGeneratedFiles = (input: unknown): FileItem[] => {
   if (!Array.isArray(input)) throw new Error('The AI response did not include a file list.');
-  const allowed = new Set(['html', 'css', 'js', 'json', 'txt']); const seen = new Set<string>();
+  const allowed = new Set(['html', 'css', 'js', 'mjs', 'cjs', 'jsx', 'ts', 'tsx', 'json', 'md', 'txt', 'yaml', 'yml', 'toml', 'xml', 'svg', 'sql', 'py', 'sh', 'java', 'kt', 'gradle']); const seen = new Set<string>();
   const output: FileItem[] = []; let total = 0;
   for (const item of input) {
     if (!item || typeof item.path !== 'string' || typeof item.content !== 'string') continue;
     const path = item.path; const parts = path.split('/'); const extension = path.split('.').pop()?.toLowerCase();
-    if (!path || path.length > 120 || path.startsWith('/') || path.includes(String.fromCharCode(92)) ||
-      parts.some((part: string) => !part || part === '.' || part === '..' || part.startsWith('.') || !/^[a-zA-Z0-9_.-]+$/.test(part)) ||
+    if (!path || path.length > 240 || path.startsWith('/') || path.includes(String.fromCharCode(92)) ||
+      parts.length > 24 || parts.some((part: string) => !part || part === '.' || part === '..' || part.startsWith('.') || !/^[a-zA-Z0-9_.-]+$/.test(part)) ||
       !extension || !allowed.has(extension)) continue;
-    if (item.content.length > 250000) continue;
-    if (seen.has(path)) throw new Error('The AI returned duplicate file paths: ' + path);
     const bytes = new TextEncoder().encode(item.content).byteLength;
-    if (total + bytes > 1200000) throw new Error('Generated files exceed the 1.2 MB project limit.');
-    if (output.length >= 20) throw new Error('Generated projects cannot contain more than 20 files.');
+    if (bytes > 500000) continue;
+    if (seen.has(path)) throw new Error('The AI returned duplicate file paths: ' + path);
+    if (total + bytes > 5000000) throw new Error('Project files exceed the 5 MB workspace limit.');
+    if (output.length >= 250) throw new Error('Projects cannot contain more than 250 files.');
     seen.add(path); total += bytes; output.push({ path, content: item.content });
   }
   if (!output.some(file => file.path === 'index.html')) throw new Error('The generated project did not contain a valid index.html.');
@@ -82,7 +83,7 @@ export default function App() {
   const [workspaces, setWorkspaces] = useState<Workspace[]>(load);
   const [workspaceId, setWorkspaceId] = useState('');
   const [projectId, setProjectId] = useState('');
-  const isPhone = typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches;
+  const [isPhone, setIsPhone] = useState(() => typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches);
   const [screen, setScreen] = useState<'home' | 'projects' | 'settings' | 'builder'>('home');
   const [activeView, setActiveView] = useState<'chat' | 'preview' | 'code' | 'plan' | 'issues' | 'history'>(isPhone ? 'chat' : 'preview');
   const [mode, setMode] = useState<'plan' | 'build'>(() => {
@@ -129,6 +130,20 @@ export default function App() {
   const [autoTestRepairEnabled, setAutoTestRepairEnabled] = useState(false);
   const autoRepairCount = useRef(0);
   const previewFrame = useRef<HTMLIFrameElement>(null);
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 767px)');
+    const updateViewport = () => setIsPhone(media.matches);
+    updateViewport();
+    if (media.addEventListener) {
+      media.addEventListener('change', updateViewport);
+      return () => media.removeEventListener('change', updateViewport);
+    }
+    media.addListener(updateViewport);
+    return () => media.removeListener(updateViewport);
+  }, []);
+  useEffect(() => {
+    if (screen === 'builder') setActiveView(isPhone ? 'chat' : 'preview');
+  }, [isPhone, screen]);
   useEffect(() => { try { localStorage.setItem('codera-workspaces-v1', JSON.stringify(workspaces)); } catch { /* Keep the current session usable if storage is full or unavailable. */ } }, [workspaces]);
   useEffect(() => { try { localStorage.setItem('codera.ui.mode', mode); } catch { /* Preference is optional. */ } }, [mode]);
   useEffect(() => {
@@ -311,18 +326,37 @@ export default function App() {
     if (!project || !prompt.trim() || busy) return;
     setBusy(true); setError(''); setHistory(prev => [prompt.trim(), ...prev].slice(0, 6));
     try {
-      setStatus('Planning your build…');
-      const raw = await keylessAI('build', prompt.trim(), project.name, project.files, project.plan);
-      setStatus('Validating generated files…');
-      const data = parseAIJson<{ summary?: string; files?: FileItem[] }>(raw);
-      const safe = validateGeneratedFiles(data.files);
+      const taskPrompt = prompt.trim();
+      setStatus('Starting autonomous agent…');
+      const agentResult = await runCoderaAgentTask({
+        projectId: project.id,
+        projectName: project.name,
+        prompt: taskPrompt,
+        mode: 'build',
+        files: project.files,
+        plan: project.plan,
+        approval: async (tool, args) => window.confirm(
+          'Codera Agent requests permission to ' + tool + '.\\n\\n' +
+          JSON.stringify(args, null, 2).slice(0, 1400) +
+          '\\n\\nAllow this action inside the current project?'
+        ),
+        onEvent: event => setStatus(event.message),
+      });
+      if (agentResult.run.status !== 'completed') {
+        throw new Error(agentResult.run.error || 'The agent did not complete this task.');
+      }
+      if (!agentResult.run.changedFiles.length) {
+        throw new Error('The agent finished without changing project files. Give it a more specific implementation task.');
+      }
+      setStatus('Validating agent changes…');
+      const safe = validateGeneratedFiles(agentResult.files);
       autoRepairCount.current = 0;
       setRuntimeErrors([]);
       setPreviewChecks([]);
       setPreviewReady(false);
       setAutoTestRepairEnabled(true);
       updateProject(p => ({ ...p, versions: p.files.length ? [snapshotVersion(p, 'Before build'), ...(p.versions || [])].slice(0, 12) : (p.versions || []), files: safe, plan: p.plan.length ? p.plan : planFor(prompt.trim()), updated: Date.now() }));
-      setSelectedFile('index.html'); setPanel('preview'); setPrompt(''); setActiveView('preview'); setStatus('Build complete · Kilo Auto Free');
+      setSelectedFile('index.html'); setPanel('preview'); setPrompt(''); setActiveView('preview'); setStatus('Agent completed · ' + agentResult.run.steps + ' steps · ' + agentResult.run.toolCalls + ' tool calls');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Build failed.');
       setStatus('Build needs attention');

@@ -72,13 +72,22 @@ for (const width of [375, 768, 1280]) {
 }
 
 test('failed preview audits are sent to the repair engine and retested', async ({ page }) => {
+  let agentTurns = 0;
+  await page.route('**/api/agent', async route => {
+    agentTurns++;
+    const content = agentTurns === 1
+      ? JSON.stringify({ summary: 'Fixture build', files: [
+          { path: 'index.html', content: '<!doctype html><html lang="en"><head><title>Needs repair</title></head><body><main><h1>Needs repair</h1></main></body></html>' },
+          { path: 'styles.css', content: 'body{margin:0;font:16px system-ui}' }
+        ] })
+      : JSON.stringify({ type: 'final', message: 'Initial files were written. Preview verification is next.' });
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ choices: [{ message: { content } }] }) });
+  });
   let requests = 0;
   await page.route('**/api/generate', async route => {
     requests++;
-    const html = requests === 1
-      ? '<!doctype html><html lang="en"><head><title>Needs repair</title></head><body><main><h1>Needs repair</h1></main></body></html>'
-      : '<!doctype html><html lang="en"><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>Repaired page</title></head><body><main><h1>Repaired page</h1></main></body></html>';
-    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ summary: 'Fixture build', files: [
+    const html = '<!doctype html><html lang="en"><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>Repaired page</title></head><body><main><h1>Repaired page</h1></main></body></html>';
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ summary: 'Fixture repair', files: [
       { path: 'index.html', content: html }, { path: 'styles.css', content: 'body{margin:0;font:16px system-ui}' }
     ] }) });
   });
@@ -86,7 +95,8 @@ test('failed preview audits are sent to the repair engine and retested', async (
   await page.getByRole('group', { name: 'AI mode' }).getByRole('button', { name: 'Build' }).click();
   await page.locator('.prompt-card textarea').fill('Build a simple landing page');
   await page.getByRole('button', { name: /Build project/ }).click();
-  await expect.poll(() => requests).toBe(2);
+  await expect.poll(() => agentTurns).toBe(2);
+  await expect.poll(() => requests).toBe(1);
   await expect(page.getByText('Preview checks passed · ready to review')).toBeVisible();
   await expect(page.getByText('Responsive viewport')).toBeVisible();
   await expect(page.getByText(/0 failures/)).toBeVisible();
@@ -130,24 +140,26 @@ test('Floot-imported local workspaces and files are migrated without losing proj
 });
 
 test('project builds create restorable version-history checkpoints', async ({ page }) => {
-  await page.route('**/api/generate', async route => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        summary: 'A first generated page',
-        files: [
-          { path: 'index.html', content: '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Generated page</title></head><body><main><h1>Generated checkpoint</h1></main></body></html>' },
-          { path: 'styles.css', content: 'body{margin:0;font:16px system-ui}' }
-        ]
-      })
-    });
+  let agentTurns = 0;
+  await page.route('**/api/agent', async route => {
+    agentTurns++;
+    const content = agentTurns === 1
+      ? JSON.stringify({
+          summary: 'A first generated page',
+          files: [
+            { path: 'index.html', content: '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Generated page</title></head><body><main><h1>Generated checkpoint</h1></main></body></html>' },
+            { path: 'styles.css', content: 'body{margin:0;font:16px system-ui}' }
+          ]
+        })
+      : JSON.stringify({ type: 'final', message: 'Generated the page and completed the task.' });
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ choices: [{ message: { content } }] }) });
   });
   await openApp(page);
   await page.getByRole('group', { name: 'AI mode' }).getByRole('button', { name: 'Build' }).click();
   await page.locator('.prompt-card textarea').fill('Build a clean responsive landing page');
   await page.getByRole('button', { name: /Build project/ }).click();
-  await expect(page.getByText('Build complete · Kilo Auto Free')).toBeVisible();
+  await expect.poll(() => agentTurns).toBe(2);
+  await expect(page.getByText('Agent completed · 2 steps · 1 tool calls')).toBeVisible();
   await page.getByRole('button', { name: /Version history/ }).click();
   await expect(page.getByText('Before build')).toBeVisible();
   await page.locator('.version-menu button').first().click();
@@ -192,4 +204,16 @@ test('starter website is visibly rendered inside the live preview iframe', async
   await expect(previewFrame.getByRole('heading', { name: /Make something/ })).toBeVisible();
   await expect(previewFrame.getByText('YOUR CANVAS IS READY')).toBeVisible();
   await expect(previewFrame.locator('body')).toHaveCSS('background-color', 'rgb(12, 16, 32)');
+});
+
+test('builder navigation adapts when resizing between desktop and phone widths', async ({ page }) => {
+  await openApp(page);
+  const mobileNav = page.getByRole('navigation', { name: 'Project navigation' });
+  await page.setViewportSize({ width: 375, height: 820 });
+  await expect(mobileNav.getByRole('button', { name: 'Chat' })).toHaveClass(/active/);
+  await mobileNav.getByRole('button', { name: 'Code' }).click();
+  await expect(mobileNav.getByRole('button', { name: 'Code' })).toHaveClass(/active/);
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const desktopTabs = page.getByRole('tablist', { name: 'Project workspace' });
+  await expect(desktopTabs.getByRole('tab', { name: /Preview/ })).toHaveAttribute('aria-selected', 'true');
 });

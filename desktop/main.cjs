@@ -1,7 +1,13 @@
 const { app, BrowserWindow, ipcMain, Menu } = require('electron');
 const path = require('node:path');
+const { createNativeAgentService } = require('./agent-runtime.cjs');
 
 const GATEWAY = 'https://ai-gateway.kilo.ai/api/v1/chat/completions';
+const agentService = createNativeAgentService(app.getPath('userData'), { appPath: app.getAppPath(), resourcesPath: process.resourcesPath, isPackaged: app.isPackaged });
+const assertTrustedFrame = (event) => {
+  const url = event.senderFrame && event.senderFrame.url;
+  if (typeof url !== 'string' || !url.startsWith('file://')) throw new Error('Untrusted renderer origin.');
+};
 if (process.env.CODERA_E2E === '1') app.commandLine.appendSwitch('remote-debugging-port', '9222');
 const createWindow = () => {
   const win = new BrowserWindow({
@@ -20,12 +26,41 @@ const createWindow = () => {
   });
   win.loadFile(path.join(__dirname, '..', 'dist', 'index.html'));
 };
+ipcMain.handle('codera:agent:sync', async (event, payload) => {
+  assertTrustedFrame(event);
+  return agentService.syncProject(payload || {});
+});
+ipcMain.handle('codera:agent:list', async (event, payload) => {
+  assertTrustedFrame(event);
+  return agentService.listFiles(payload || {});
+});
+ipcMain.handle('codera:agent:read', async (event, payload) => {
+  assertTrustedFrame(event);
+  return agentService.readFile(payload || {});
+});
+ipcMain.handle('codera:agent:write', async (event, payload) => {
+  assertTrustedFrame(event);
+  return agentService.writeFile(payload || {});
+});
+ipcMain.handle('codera:agent:delete', async (event, payload) => {
+  assertTrustedFrame(event);
+  return agentService.deleteFile(payload || {});
+});
+ipcMain.handle('codera:agent:search', async (event, payload) => {
+  assertTrustedFrame(event);
+  return agentService.searchFiles(payload || {});
+});
+ipcMain.handle('codera:agent:verify-browser', async (event, payload) => {\n  assertTrustedFrame(event);\n  return agentService.verifyBrowser(payload || {});\n});\nipcMain.handle('codera:agent:command', async (event, payload) => {
+  assertTrustedFrame(event);
+  return agentService.runCommand(payload || {});
+});
+
 ipcMain.handle('codera:kilo', async (_event, payload) => {
-  if (!payload || payload.model !== 'kilo-auto/free' || !Array.isArray(payload.messages) || payload.messages.length > 8) {
+  if (!payload || payload.model !== 'kilo-auto/free' || !Array.isArray(payload.messages) || payload.messages.length > 40) {
     throw new Error('Invalid AI request.');
   }
   const size = JSON.stringify(payload).length;
-  if (size > 1800000) throw new Error('The AI request is too large.');
+  if (size > 1500000) throw new Error('The AI request is too large.');
   const response = await fetch(GATEWAY, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-kilocode-mode': payload.temperature === 0.25 ? 'plan' : 'code' },
